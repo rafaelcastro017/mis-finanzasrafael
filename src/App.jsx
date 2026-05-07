@@ -25,8 +25,27 @@ const fbSave = async (data) => {
 };
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────────────
-const EXP_CATS = ["Comestibles","Restaurante","Bar / Cafetería","Combustible","Aseo hogar","Aseo personal","Mascotas","Ropa y calzado","Alcohol / Tabaco","Internet","Teléfono","Suscripciones","Préstamos / Cuotas","Arriendo Novaglamp","Insumos Novaglamp","Insumos Batidos","Salud","Educación","Donaciones","Otros"];
-const INC_CATS = ["Salario","Hipnoterapia","Novaglamp - Hospedaje","Novaglamp - Bebidas","Novaglamp - Comida","Novaglamp - Masajes","Batidos Saludables","Préstamo recibido","Reembolso","Otros ingresos"];
+// Grouped categories - {group, icon, items[]}
+const DEFAULT_EXP_GROUPS = [
+  {group:"Alimentación",  icon:"🍽️", items:["Comestibles","Restaurante","Bar / Cafetería","Alcohol / Tabaco"]},
+  {group:"Transporte",    icon:"🚗", items:["Combustible","Taxi / Uber","Transporte público"]},
+  {group:"Hogar",         icon:"🏠", items:["Arriendo","Aseo hogar","Aseo personal","Mascotas","Servicios públicos"]},
+  {group:"Tecnología",    icon:"📱", items:["Internet","Teléfono","Suscripciones"]},
+  {group:"Deudas",        icon:"💳", items:["Préstamos / Cuotas","Arriendo Novaglamp"]},
+  {group:"Novaglamp",     icon:"🏪", items:["Insumos Novaglamp","Insumos Batidos","Mantenimiento"]},
+  {group:"Personal",      icon:"👤", items:["Ropa y calzado","Salud","Educación","Entretenimiento"]},
+  {group:"Otros",         icon:"📦", items:["Donaciones","Otros"]},
+];
+
+const DEFAULT_INC_GROUPS = [
+  {group:"Trabajo",       icon:"💼", items:["Salario","Hipnoterapia"]},
+  {group:"Novaglamp",     icon:"🏪", items:["Hospedaje","Bebidas","Comida","Masajes"]},
+  {group:"Batidos",       icon:"🥤", items:["Batidos Saludables"]},
+  {group:"Extras",        icon:"💰", items:["Préstamo recibido","Reembolso","Otros ingresos"]},
+];
+
+// Helper: flatten grouped cats to simple array
+const flatCats = groups => groups.flatMap(g => g.items);
 const PALETTE  = ["#10b981","#3b82f6","#f59e0b","#ef4444","#8b5cf6","#ec4899","#06b6d4","#84cc16","#f97316","#14b8a6","#a78bfa"];
 const USERS    = ["Rafael","Pareja"];
 const ACC_COLORS = ["#3b82f6","#10b981","#f59e0b","#8b5cf6","#ec4899","#06b6d4"];
@@ -55,6 +74,28 @@ const fmt      = n => new Intl.NumberFormat("es-CO",{style:"currency",currency:"
 const fmtShort = n => new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",minimumFractionDigits:0}).format(n);
 const today    = () => new Date().toISOString().split("T")[0];
 const thisMonth= () => new Date().toISOString().slice(0,7);
+
+// ── NUM INPUT — no pierde foco, muestra formato al salir ─────────────────────
+function NumInput({value, onChange, placeholder, style}) {
+  const [focused, setFocused] = useState(false);
+  const [raw, setRaw] = useState(value!=null?String(value):"");
+  const fmtN = n => n ? new Intl.NumberFormat("es-CO").format(n) : "";
+  const handleChange = e => {
+    const v = e.target.value.replace(/[^0-9]/g,"");
+    setRaw(v);
+    onChange(v ? parseInt(v) : 0);
+  };
+  // sync raw when value changes externally
+  useEffect(()=>{ if(!focused) setRaw(value!=null?String(value):""); },[value,focused]);
+  return (
+    <input style={style} type="text" inputMode="numeric" placeholder={placeholder}
+      value={focused ? raw : (value ? fmtN(value) : "")}
+      onFocus={()=>{ setFocused(true); setRaw(value!=null?String(value):""); }}
+      onBlur={()=>setFocused(false)}
+      onChange={handleChange}
+    />
+  );
+}
 
 // ── CALENDAR PICKER ───────────────────────────────────────────────────────────
 function CalendarPicker({value, onChange}) {
@@ -113,15 +154,14 @@ function CalendarPicker({value, onChange}) {
 }
 
 // ── TRANSACTION FORM ─────────────────────────────────────────────────────────
-function TransactionForm({accounts, onSave, onCancel}) {
+function TransactionForm({accounts, expGroups, incGroups, onSave, onCancel}) {
+  const expFlat = expGroups.flatMap(g=>g.items);
+  const incFlat = incGroups.flatMap(g=>g.items);
   const [tx, setTx] = useState({
     user:"Rafael", account: accounts[0]?.id || "finandina",
-    type:"expense", category:"Comestibles",
+    type:"expense", category: expFlat[0] || "Otros",
     amount:"", description:"", date:new Date().toISOString().split("T")[0], shared:false
   });
-
-  const EXP = ["Comestibles","Restaurante","Bar / Cafetería","Combustible","Aseo hogar","Aseo personal","Mascotas","Ropa y calzado","Alcohol / Tabaco","Internet","Teléfono","Suscripciones","Préstamos / Cuotas","Arriendo Novaglamp","Insumos Novaglamp","Insumos Batidos","Salud","Educación","Donaciones","Otros"];
-  const INC = ["Salario","Hipnoterapia","Novaglamp - Hospedaje","Novaglamp - Bebidas","Novaglamp - Comida","Novaglamp - Masajes","Batidos Saludables","Préstamo recibido","Reembolso","Otros ingresos"];
 
   const inp = {width:"100%",background:"#08111f",border:"1px solid #1e3a5f",borderRadius:"9px",padding:"12px",color:"#e2e8f0",fontSize:"16px",fontFamily:"'Sora',sans-serif",outline:"none",boxSizing:"border-box",marginBottom:"8px"};
   const sel = {...inp};
@@ -138,7 +178,7 @@ function TransactionForm({accounts, onSave, onCancel}) {
         <select style={sel} value={tx.user} onChange={e=>setTx(p=>({...p,user:e.target.value}))}>
           {["Rafael","Pareja"].map(u=><option key={u}>{u}</option>)}
         </select>
-        <select style={sel} value={tx.type} onChange={e=>setTx(p=>({...p,type:e.target.value,category:e.target.value==="income"?INC[0]:EXP[0]}))}>
+        <select style={sel} value={tx.type} onChange={e=>setTx(p=>({...p,type:e.target.value,category:e.target.value==="income"?incFlat[0]:expFlat[0]}))}>
           <option value="expense">💸 Gasto</option>
           <option value="income">💰 Ingreso</option>
         </select>
@@ -147,15 +187,17 @@ function TransactionForm({accounts, onSave, onCancel}) {
         {accounts.map(a=><option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
       </select>
       <select style={sel} value={tx.category} onChange={e=>setTx(p=>({...p,category:e.target.value}))}>
-        {(tx.type==="income"?INC:EXP).map(c=><option key={c}>{c}</option>)}
+        {(tx.type==="income"?incGroups:expGroups).map(g=>(
+          <optgroup key={g.group} label={`${g.icon} ${g.group}`}>
+            {g.items.map(c=><option key={c} value={c}>{c}</option>)}
+          </optgroup>
+        ))}
       </select>
-      <input
+      <NumInput
         style={inp}
-        type="number"
-        inputMode="numeric"
         placeholder="Monto en COP"
         value={tx.amount}
-        onChange={e=>setTx(p=>({...p,amount:e.target.value}))}
+        onChange={v=>setTx(p=>({...p,amount:v}))}
       />
       <input
         style={inp}
@@ -194,44 +236,48 @@ export default function App() {
   const [accounts,     setAccounts]     = useState(DEFAULT_ACCOUNTS);
   const [transactions, setTransactions] = useState(SAMPLE_TXS);
   const [budget,       setBudget]       = useState(DEFAULT_BUDGET);
-  const [debts,        setDebts]        = useState([
-    // ── Deudas personales ──────────────────────────────────────
-    {id:1,  name:"Norbey",           total:9000000,  remaining:9000000,  monthly:1000000, color:"#ef4444"},
-    {id:2,  name:"Andrés Mora 2",    total:8000000,  remaining:8000000,  monthly:560000,  color:"#f97316"},
-    {id:3,  name:"Carro",            total:7000000,  remaining:7000000,  monthly:500000,  color:"#f59e0b"},
-    {id:4,  name:"Cristina",         total:6000000,  remaining:6000000,  monthly:300000,  color:"#ec4899"},
-    {id:5,  name:"Danilo 1",         total:5000000,  remaining:5000000,  monthly:350000,  color:"#8b5cf6"},
-    {id:6,  name:"Andrés Mora 1",    total:5000000,  remaining:5000000,  monthly:350000,  color:"#a78bfa"},
-    {id:7,  name:"José Luis 2",      total:3000000,  remaining:3000000,  monthly:450000,  color:"#06b6d4"},
-    {id:8,  name:"Danilo 2",         total:3000000,  remaining:3000000,  monthly:150000,  color:"#14b8a6"},
-    {id:9,  name:"José Luis 1",      total:1500000,  remaining:1500000,  monthly:75000,   color:"#3b82f6"},
-    {id:10, name:"Hilda",            total:250000,   remaining:250000,   monthly:50000,   color:"#84cc16"},
-    // ── Créditos virtuales ─────────────────────────────────────
-    {id:11, name:"Banco de Bogotá",  total:2292924,  remaining:2292924,  monthly:208264,  color:"#ef4444"},
-    {id:12, name:"Addi",             total:1850888,  remaining:1850888,  monthly:768481,  color:"#f97316"},
-    {id:13, name:"Banco Serfinanza", total:1710189,  remaining:1710189,  monthly:517774,  color:"#f59e0b"},
-    {id:14, name:"Credimarcas",      total:945384,   remaining:945384,   monthly:118200,  color:"#8b5cf6"},
-    {id:15, name:"Luego Pago",       total:728205,   remaining:728205,   monthly:147584,  color:"#ec4899"},
-    {id:16, name:"Muebles Milenio",  total:624855,   remaining:624855,   monthly:208285,  color:"#06b6d4"},
-    {id:17, name:"Rapicredit",       total:630000,   remaining:630000,   monthly:630000,  color:"#ef4444"},
-    {id:18, name:"Wasticredit",      total:500000,   remaining:500000,   monthly:500000,  color:"#f97316"},
-    {id:19, name:"Sistecredito KOAJ",total:326978,   remaining:326978,   monthly:163489,  color:"#3b82f6"},
-    {id:20, name:"Toto",             total:263848,   remaining:263848,   monthly:137116,  color:"#84cc16"},
-    {id:21, name:"Sistecredito D&G", total:82134,    remaining:82134,    monthly:41067,   color:"#14b8a6"},
+  const [debts, setDebts] = useState([
+    // type: "solo_interes" | "capital_interes" | "solo_capital"
+    // ── Deudas personales ──────────────────────────────────────────────────────
+    {id:1,  name:"Norbey",           type:"solo_capital",    total:9000000, remaining:9000000, rate:0,  monthly:1000000, dueDay:null, color:"#ef4444"},
+    {id:2,  name:"Andrés Mora 2",    type:"solo_interes",    total:8000000, remaining:8000000, rate:7,  monthly:560000,  dueDay:null, color:"#f97316"},
+    {id:3,  name:"Carro",            type:"solo_capital",    total:7000000, remaining:7000000, rate:0,  monthly:500000,  dueDay:null, color:"#f59e0b"},
+    {id:4,  name:"Cristina",         type:"solo_interes",    total:6000000, remaining:6000000, rate:0,  monthly:400000,  dueDay:null, color:"#ec4899"},
+    {id:5,  name:"Danilo 1",         type:"capital_interes", total:5000000, remaining:5000000, rate:0,  monthly:350000,  dueDay:null, color:"#8b5cf6"},
+    {id:6,  name:"Andrés Mora 1",    type:"solo_interes",    total:5000000, remaining:5000000, rate:7,  monthly:350000,  dueDay:null, color:"#a78bfa"},
+    {id:7,  name:"José Luis 2",      type:"capital_interes", total:3000000, remaining:3000000, rate:0,  monthly:450000,  dueDay:null, color:"#06b6d4"},
+    {id:8,  name:"Danilo 2",         type:"solo_interes",    total:3000000, remaining:3000000, rate:0,  monthly:150000,  dueDay:null, color:"#14b8a6"},
+    {id:9,  name:"José Luis 1",      type:"solo_interes",    total:1500000, remaining:1500000, rate:5,  monthly:75000,   dueDay:null, color:"#3b82f6"},
+    {id:10, name:"Hilda",            type:"capital_interes", total:250000,  remaining:250000,  rate:0,  monthly:50000,   dueDay:null, color:"#84cc16"},
+    // ── Créditos virtuales (capital + interés en cuota) ────────────────────────
+    {id:11, name:"Banco de Bogotá",  type:"capital_interes", total:2292924, remaining:2292924, rate:0,  monthly:208264,  dueDay:null, color:"#ef4444"},
+    {id:12, name:"Addi",             type:"capital_interes", total:1850888, remaining:1850888, rate:0,  monthly:768481,  dueDay:null, color:"#f97316"},
+    {id:13, name:"Banco Serfinanza", type:"capital_interes", total:1710189, remaining:1710189, rate:0,  monthly:517774,  dueDay:null, color:"#f59e0b"},
+    {id:14, name:"Credimarcas",      type:"capital_interes", total:945384,  remaining:945384,  rate:0,  monthly:118200,  dueDay:null, color:"#8b5cf6"},
+    {id:15, name:"Luego Pago",       type:"capital_interes", total:728205,  remaining:728205,  rate:0,  monthly:147584,  dueDay:null, color:"#ec4899"},
+    {id:16, name:"Muebles Milenio",  type:"capital_interes", total:624855,  remaining:624855,  rate:0,  monthly:208285,  dueDay:null, color:"#06b6d4"},
+    {id:17, name:"Rapicredit",       type:"capital_interes", total:630000,  remaining:630000,  rate:0,  monthly:630000,  dueDay:null, color:"#dc2626"},
+    {id:18, name:"Wasticredit",      type:"capital_interes", total:500000,  remaining:500000,  rate:0,  monthly:500000,  dueDay:null, color:"#ea580c"},
+    {id:19, name:"Sistecredito KOAJ",type:"capital_interes", total:326978,  remaining:326978,  rate:0,  monthly:163489,  dueDay:null, color:"#3b82f6"},
+    {id:20, name:"Toto",             type:"capital_interes", total:263848,  remaining:263848,  rate:0,  monthly:137116,  dueDay:null, color:"#84cc16"},
+    {id:21, name:"Sistecredito D&G", type:"capital_interes", total:82134,   remaining:82134,   rate:0,  monthly:41067,   dueDay:null, color:"#14b8a6"},
   ]);
   const [history,      setHistory]      = useState([]);
   const [undoMsg,      setUndoMsg]      = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [savingsGoal, setSavingsGoal] = useState(500000);
+  const [savingsGoal,  setSavingsGoal]  = useState(500000);
   const [filterUser,   setFilterUser]   = useState("Todos");
+  const [expCats,      setExpCats]      = useState(DEFAULT_EXP_GROUPS);
+  const [incCats,      setIncCats]      = useState(DEFAULT_INC_GROUPS);
   const [ready,        setReady]        = useState(false);
   const [showForm,     setShowForm]     = useState(false);
   const [editingTx,    setEditingTx]    = useState(null);
   const [showDebtForm, setShowDebtForm] = useState(false);
   const [editingDebt,  setEditingDebt]  = useState(null);
+  const [payingDebt,   setPayingDebt]   = useState(null);
   const [showAccForm,  setShowAccForm]  = useState(false);
   const [newTx,   setNewTx]   = useState({user:"Rafael",account:"finandina",type:"expense",category:"Comestibles",amount:"",description:"",date:today(),shared:false});
-  const [newDebt, setNewDebt] = useState({name:"",total:"",remaining:"",monthly:"",color:"#ef4444"});
+  const [newDebt, setNewDebt] = useState({name:"",type:"capital_interes",total:"",remaining:"",monthly:"",rate:"",dueDay:"",color:"#ef4444"});
   const [newAcc,  setNewAcc]  = useState({name:"",icon:"🏦",color:"#3b82f6",initialBalance:""});
   const [chatMsgs,    setChatMsgs]    = useState([{role:"assistant",content:"¡Hola Rafael! 👋 Soy tu asesor financiero. Tengo acceso a tus cuentas, transacciones y deudas en tiempo real. ¿En qué te ayudo?"}]);
   const [chatInput,   setChatInput]   = useState("");
@@ -245,7 +291,6 @@ export default function App() {
 
   useEffect(()=>{
     (async()=>{
-      // Intentar Firebase primero, luego storage de Claude como respaldo
       let d = await fbLoad();
       if (!d) {
         try {
@@ -258,6 +303,9 @@ export default function App() {
         if(d.budget)setBudget(d.budget);
         if(d.debts?.length)setDebts(d.debts);
         if(d.accounts?.length)setAccounts(d.accounts);
+        if(d.expCats?.length)setExpCats(d.expCats);
+        if(d.incCats?.length)setIncCats(d.incCats);
+        if(d.savingsGoal)setSavingsGoal(d.savingsGoal);
       }
       setReady(true);
     })();
@@ -265,11 +313,10 @@ export default function App() {
 
   useEffect(()=>{
     if(!ready)return;
-    const data = {transactions,budget,debts,accounts};
-    // Guardar en Firebase (nube) y en storage de Claude (respaldo)
+    const data = {transactions,budget,debts,accounts,expCats,incCats,savingsGoal};
     fbSave(data);
     (async()=>{try{await window.storage.set("finanzas_v7",JSON.stringify(data));}catch{}})();
-  },[transactions,budget,debts,accounts,ready]);
+  },[transactions,budget,debts,accounts,expCats,incCats,savingsGoal,ready]);
 
   // ── DERIVED ─────────────────────────────────────────────────────────────────
   const filtered   = filterUser==="Todos"?transactions:transactions.filter(t=>t.user===filterUser);
@@ -285,13 +332,13 @@ export default function App() {
   });
   const totalBalance=accBalances.reduce((s,a)=>s+a.balance,0);
 
-  const catData=EXP_CATS.map(cat=>({name:cat,value:monthTxs.filter(t=>t.type==="expense"&&t.category===cat).reduce((s,t)=>s+t.amount,0)})).filter(d=>d.value>0).sort((a,b)=>b.value-a.value);
-  const budgetRows=EXP_CATS.map(cat=>{const spent=monthTxs.filter(t=>t.type==="expense"&&t.category===cat).reduce((s,t)=>s+t.amount,0);const limit=budget[cat]||0;return{cat,spent,limit,pct:limit>0?Math.min((spent/limit)*100,100):0};});
+  const catData=flatCats(expCats).map(cat=>({name:cat,value:monthTxs.filter(t=>t.type==="expense"&&t.category===cat).reduce((s,t)=>s+t.amount,0)})).filter(d=>d.value>0).sort((a,b)=>b.value-a.value);
+  const budgetRows=flatCats(expCats).map(cat=>{const spent=monthTxs.filter(t=>t.type==="expense"&&t.category===cat).reduce((s,t)=>s+t.amount,0);const limit=budget[cat]||0;return{cat,spent,limit,pct:limit>0?Math.min((spent/limit)*100,100):0};});
 
   // ── ACTIONS ─────────────────────────────────────────────────────────────────
   const addTx=tx=>{
     if(!tx.amount||!tx.description)return;
-    const total=parseInt(tx.amount);
+    const total=typeof tx.amount==="number"?tx.amount:parseInt(tx.amount)||0;
     if(tx.shared&&tx.type==="expense"){
       const half=Math.round(total/2);
       const base={category:tx.category,description:tx.description+" (compartido)",date:tx.date,type:"expense",account:tx.account,shared:true};
@@ -318,8 +365,66 @@ export default function App() {
 
   const deleteTx=id=>{saveHistory("Transacción eliminada");setTransactions(p=>p.filter(t=>t.id!==id));};
   const saveEdit=()=>{if(!editingTx.amount||!editingTx.description)return;setTransactions(p=>p.map(t=>t.id===editingTx.id?{...editingTx,amount:parseInt(editingTx.amount)}:t));setEditingTx(null);};
-  const addDebt=()=>{if(!newDebt.name||!newDebt.total)return;setDebts(p=>[...p,{...newDebt,id:Date.now(),total:parseInt(newDebt.total),remaining:parseInt(newDebt.remaining||newDebt.total),monthly:parseInt(newDebt.monthly||0)}]);setNewDebt({name:"",total:"",remaining:"",monthly:"",color:"#ef4444"});setShowDebtForm(false);};
-  const payDebt=id=>{const d=debts.find(x=>x.id===id);if(!d)return;const pmt=Math.min(d.monthly,d.remaining);setDebts(p=>p.map(x=>x.id===id?{...x,remaining:Math.max(0,x.remaining-pmt)}:x));setTransactions(p=>[{id:Date.now(),user:"Rafael",account:"finandina",type:"expense",category:"Préstamos / Cuotas",description:`Pago: ${d.name}`,amount:pmt,date:today()},...p]);};
+  const addDebt=()=>{
+    if(!newDebt.name||!newDebt.total)return;
+    const total=parseInt(newDebt.total)||0;
+    const remaining=parseInt(newDebt.remaining||newDebt.total)||0;
+    const rate=parseFloat(newDebt.rate)||0;
+    const monthly=parseInt(newDebt.monthly)||(newDebt.type==="solo_interes"?Math.round(remaining*rate/100):0);
+    setDebts(p=>[...p,{...newDebt,id:Date.now(),total,remaining,monthly,rate,dueDay:parseInt(newDebt.dueDay)||null}]);
+    setNewDebt({name:"",type:"capital_interes",total:"",remaining:"",monthly:"",rate:"",dueDay:"",color:"#ef4444"});
+    setShowDebtForm(false);
+  };
+
+  const openPayDialog = id => {
+    const d = debts.find(x=>x.id===id);
+    if (!d) return;
+    const interestAmt = d.rate > 0 ? Math.round(d.remaining * d.rate / 100) : 0;
+    setPayingDebt({
+      ...d,
+      interestAmt,
+      capitalAmt: Math.max(0, d.monthly - interestAmt),
+      customAmount: d.monthly || interestAmt,
+      payType: d.type === "solo_capital" ? "capital" : d.type === "solo_interes" ? "interes" : "ambos",
+      account: "finandina",
+    });
+  };
+
+  const processPayment = () => {
+    if (!payingDebt) return;
+    const d = payingDebt;
+    const pmt = parseInt(d.customAmount) || 0;
+    if (!pmt) return;
+
+    let newRemaining = d.remaining;
+    let desc = "";
+
+    if (d.payType === "interes") {
+      // Solo interés — capital no cambia
+      desc = `Interés: ${d.name}`;
+    } else if (d.payType === "capital") {
+      // Solo capital
+      newRemaining = Math.max(0, d.remaining - pmt);
+      desc = `Abono capital: ${d.name}`;
+    } else if (d.payType === "ambos") {
+      // Capital + interés
+      const capitalPortion = Math.max(0, pmt - d.interestAmt);
+      newRemaining = Math.max(0, d.remaining - capitalPortion);
+      desc = `Cuota: ${d.name} (capital ${fmt(capitalPortion)} + interés ${fmt(d.interestAmt)})`;
+    } else if (d.payType === "abono") {
+      // Abono libre — va a capital
+      newRemaining = Math.max(0, d.remaining - pmt);
+      desc = `Abono libre: ${d.name}`;
+    }
+
+    setDebts(p => p.map(x => x.id === d.id ? {...x, remaining: newRemaining} : x));
+    setTransactions(p => [{
+      id: Date.now(), user:"Rafael", account: d.account || "finandina",
+      type:"expense", category:"Préstamos / Cuotas",
+      description: desc, amount: pmt, date: today()
+    }, ...p]);
+    setPayingDebt(null);
+  };
   const deleteDebt=id=>{saveHistory("Deuda eliminada");setDebts(p=>p.filter(d=>d.id!==id));};
   const saveDebtEdit=()=>{
     if(!editingDebt.name)return;
@@ -493,7 +598,7 @@ export default function App() {
           <input style={{...s.input,marginBottom:"8px"}} placeholder="Nombre (ej: Bancolombia)" value={newAcc.name} onChange={e=>setNewAcc(p=>({...p,name:e.target.value}))}/>
           <div style={{display:"grid",gridTemplateColumns:"1fr 2fr",gap:"8px",marginBottom:"8px"}}>
             <input style={s.input} placeholder="Emoji" value={newAcc.icon} onChange={e=>setNewAcc(p=>({...p,icon:e.target.value}))}/>
-            <input style={s.input} type="number" placeholder="Saldo inicial" value={newAcc.initialBalance} onChange={e=>setNewAcc(p=>({...p,initialBalance:e.target.value}))}/>
+            <NumInput style={s.input} placeholder="Saldo inicial" value={newAcc.initialBalance} onChange={v=>setNewAcc(p=>({...p,initialBalance:v}))}/>
           </div>
           <div style={{display:"flex",gap:"6px",marginBottom:"10px"}}>
             {ACC_COLORS.map(c=><div key={c} onClick={()=>setNewAcc(p=>({...p,color:c}))} style={{width:"22px",height:"22px",borderRadius:"50%",background:c,cursor:"pointer",border:newAcc.color===c?"3px solid #fff":"3px solid transparent"}}/>)}
@@ -541,7 +646,7 @@ export default function App() {
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div style={{fontSize:"11px",color:"#476282"}}>Saldo inicial:</div>
               <div style={{display:"flex",gap:"6px",alignItems:"center"}}>
-                <input type="number" value={acc.initialBalance} onChange={e=>setAccounts(p=>p.map(a=>a.id===acc.id?{...a,initialBalance:parseInt(e.target.value)||0}:a))} style={{...s.input,width:"110px",padding:"4px 8px",fontSize:"12px",textAlign:"right"}}/>
+                <NumInput value={acc.initialBalance} onChange={v=>setAccounts(p=>p.map(a=>a.id===acc.id?{...a,initialBalance:v}:a))} style={{...s.input,width:"110px",padding:"4px 8px",fontSize:"12px",textAlign:"right"}}/>
                 <button onClick={()=>deleteAccount(acc.id)} style={{background:"#2a1a1a",border:"none",borderRadius:"6px",padding:"5px 8px",cursor:"pointer",fontSize:"12px",color:"#ef4444"}}>🗑️</button>
               </div>
             </div>
@@ -563,6 +668,8 @@ export default function App() {
       {showForm && (
         <TransactionForm
           accounts={accounts}
+          expGroups={expCats}
+          incGroups={incCats}
           onSave={tx => { addTx(tx); setShowForm(false); }}
           onCancel={() => setShowForm(false)}
         />
@@ -584,9 +691,13 @@ export default function App() {
               </select>
             </div>
             <select style={{...s.select,marginBottom:"8px"}} value={editingTx.category} onChange={e=>setEditingTx(p=>({...p,category:e.target.value}))}>
-              {(editingTx.type==="income"?INC_CATS:EXP_CATS).map(c=><option key={c}>{c}</option>)}
+              {(editingTx.type==="income"?incCats:expCats).map(g=>(
+                <optgroup key={g.group} label={`${g.icon} ${g.group}`}>
+                  {g.items.map(c=><option key={c} value={c}>{c}</option>)}
+                </optgroup>
+              ))}
             </select>
-            <input style={{...s.input,marginBottom:"8px"}} type="number" value={editingTx.amount} onChange={e=>setEditingTx(p=>({...p,amount:e.target.value}))}/>
+            <NumInput style={{...s.input,marginBottom:"8px"}} placeholder="Monto" value={editingTx.amount} onChange={v=>setEditingTx(p=>({...p,amount:v}))}/>
             <input style={{...s.input,marginBottom:"8px"}} type="text" value={editingTx.description} onChange={e=>setEditingTx(p=>({...p,description:e.target.value}))}/>
             <div style={{marginBottom:"12px"}}>
               <div style={{fontSize:"11px",color:"#476282",marginBottom:"6px",fontWeight:"600",textTransform:"uppercase",letterSpacing:"1px"}}>Fecha</div>
@@ -658,7 +769,7 @@ export default function App() {
             <span style={{fontSize:"11px",color:"#476282"}}>{fmt(spent)}</span>
             <div style={{display:"flex",alignItems:"center",gap:"6px"}}>
               <span style={{fontSize:"11px",color:"#476282"}}>Límite:</span>
-              <input type="number" value={limit} onChange={e=>setBudget(p=>({...p,[cat]:parseInt(e.target.value)||0}))} style={{...s.input,width:"100px",padding:"4px 8px",fontSize:"12px",textAlign:"right"}}/>
+              <NumInput value={limit} onChange={v=>setBudget(p=>({...p,[cat]:v}))} style={{...s.input,width:"100px",padding:"4px 8px",fontSize:"12px",textAlign:"right"}}/>
             </div>
           </div>
         </div>
@@ -666,19 +777,109 @@ export default function App() {
     </div>
   );
 
-  const Deudas=()=>(
+  const DEBT_TYPE_LABELS = {
+    "solo_interes":    {label:"Solo interés",    color:"#f59e0b", desc:"Capital no baja"},
+    "capital_interes": {label:"Capital + Interés",color:"#3b82f6", desc:"Cuota cubre ambos"},
+    "solo_capital":    {label:"Solo capital",    color:"#10b981", desc:"Sin interés"},
+  };
+
+  const Deudas=()=>{
+    const inp = {...s.input, marginBottom:"8px"};
+    const colors = ["#ef4444","#f97316","#f59e0b","#10b981","#3b82f6","#8b5cf6","#ec4899"];
+
+    return(
     <div>
+      {/* ── Payment Dialog ──────────────────────────────────────────── */}
+      {payingDebt&&(
+        <div style={{position:"fixed",inset:0,background:"#000000cc",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}}>
+          <div style={{...s.card,width:"100%",maxWidth:"400px",border:`1px solid ${payingDebt.color}55`}}>
+            <div style={{fontSize:"15px",fontWeight:"800",color:payingDebt.color,marginBottom:"4px"}}>💳 Registrar pago</div>
+            <div style={{fontSize:"12px",color:"#476282",marginBottom:"14px"}}>{payingDebt.name} · Capital pendiente: {fmt(payingDebt.remaining)}</div>
+
+            {/* Info chips */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"6px",marginBottom:"14px"}}>
+              <div style={{background:"#08111f",borderRadius:"8px",padding:"7px",textAlign:"center"}}>
+                <div style={{fontSize:"9px",color:"#476282"}}>Cuota</div>
+                <div style={{fontSize:"12px",fontWeight:"700",color:"#e2e8f0"}}>{fmt(payingDebt.monthly)}</div>
+              </div>
+              <div style={{background:"#1a0f00",borderRadius:"8px",padding:"7px",textAlign:"center"}}>
+                <div style={{fontSize:"9px",color:"#476282"}}>Interés</div>
+                <div style={{fontSize:"12px",fontWeight:"700",color:"#f59e0b"}}>{fmt(payingDebt.interestAmt)}</div>
+              </div>
+              <div style={{background:"#071a12",borderRadius:"8px",padding:"7px",textAlign:"center"}}>
+                <div style={{fontSize:"9px",color:"#476282"}}>A capital</div>
+                <div style={{fontSize:"12px",fontWeight:"700",color:"#10b981"}}>{fmt(payingDebt.payType==="ambos"?Math.max(0,(parseInt(payingDebt.customAmount)||0)-payingDebt.interestAmt):payingDebt.payType==="capital"||payingDebt.payType==="abono"?(parseInt(payingDebt.customAmount)||0):0)}</div>
+              </div>
+            </div>
+
+            {/* Payment type */}
+            <div style={{fontSize:"11px",color:"#476282",marginBottom:"6px",fontWeight:"600",textTransform:"uppercase",letterSpacing:"1px"}}>Tipo de pago</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px",marginBottom:"12px"}}>
+              {[
+                {key:"ambos",   label:"💳 Capital + Interés", amount: payingDebt.monthly},
+                {key:"interes", label:"📊 Solo Interés",       amount: payingDebt.interestAmt},
+                {key:"capital", label:"🏦 Solo Capital",       amount: payingDebt.capitalAmt},
+                {key:"abono",   label:"💰 Abono libre",        amount: null},
+              ].map(opt=>(
+                <div key={opt.key} onClick={()=>setPayingDebt(p=>({...p, payType:opt.key, customAmount: opt.amount||p.customAmount}))}
+                  style={{padding:"8px 10px",borderRadius:"9px",border:`1px solid ${payingDebt.payType===opt.key?payingDebt.color:"#1e3a5f"}`,background:payingDebt.payType===opt.key?payingDebt.color+"22":"transparent",cursor:"pointer"}}>
+                  <div style={{fontSize:"12px",fontWeight:"600",color:payingDebt.payType===opt.key?payingDebt.color:"#94a3b8"}}>{opt.label}</div>
+                  {opt.amount!=null&&<div style={{fontSize:"10px",color:"#476282",marginTop:"2px"}}>{fmt(opt.amount)}</div>}
+                </div>
+              ))}
+            </div>
+
+            {/* Amount */}
+            <div style={{fontSize:"11px",color:"#476282",marginBottom:"6px",fontWeight:"600",textTransform:"uppercase",letterSpacing:"1px"}}>Monto a pagar</div>
+            <NumInput style={{...s.input,marginBottom:"8px",fontSize:"18px",fontWeight:"700"}}
+              placeholder="Monto" value={payingDebt.customAmount}
+              onChange={v=>setPayingDebt(p=>({...p,customAmount:v}))}/>
+
+            {/* Account */}
+            <select style={{...s.select,marginBottom:"14px"}} value={payingDebt.account||"finandina"} onChange={e=>setPayingDebt(p=>({...p,account:e.target.value}))}>
+              {accounts.map(a=><option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
+            </select>
+
+            {/* New remaining preview */}
+            {payingDebt.payType!=="interes"&&(
+              <div style={{background:"#071a12",border:"1px solid #10b98133",borderRadius:"8px",padding:"8px",marginBottom:"12px",textAlign:"center"}}>
+                <div style={{fontSize:"11px",color:"#476282"}}>Capital restante después del pago</div>
+                <div style={{fontSize:"16px",fontWeight:"800",color:"#10b981"}}>
+                  {fmt(Math.max(0, payingDebt.remaining - (
+                    payingDebt.payType==="capital"||payingDebt.payType==="abono"
+                      ? (parseInt(payingDebt.customAmount)||0)
+                      : Math.max(0,(parseInt(payingDebt.customAmount)||0)-payingDebt.interestAmt)
+                  )))}
+                </div>
+              </div>
+            )}
+
+            <div style={{display:"flex",gap:"8px"}}>
+              <button style={s.btn()} onClick={processPayment}>✓ Confirmar pago</button>
+              <button style={s.btn("#1a3454","#94a3b8")} onClick={()=>setPayingDebt(null)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Edit modal */}
       {editingDebt&&(
-        <div style={{position:"fixed",inset:0,background:"#000000bb",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}}>
+        <div style={{position:"fixed",inset:0,background:"#000000bb",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",overflowY:"auto"}}>
           <div style={{...s.card,width:"100%",maxWidth:"400px",border:`1px solid ${editingDebt.color}55`}}>
             <div style={{fontSize:"14px",fontWeight:"700",color:editingDebt.color,marginBottom:"12px"}}>✏️ Editar deuda</div>
-            <input style={{...s.input,marginBottom:"8px"}} placeholder="Nombre" value={editingDebt.name} onChange={e=>setEditingDebt(p=>({...p,name:e.target.value}))}/>
-            <input style={{...s.input,marginBottom:"8px"}} type="number" placeholder="Saldo pendiente" value={editingDebt.remaining} onChange={e=>setEditingDebt(p=>({...p,remaining:e.target.value}))}/>
-            <input style={{...s.input,marginBottom:"8px"}} type="number" placeholder="Cuota mensual" value={editingDebt.monthly} onChange={e=>setEditingDebt(p=>({...p,monthly:e.target.value}))}/>
-            <input style={{...s.input,marginBottom:"8px"}} type="number" placeholder="Día de pago (ej: 5, 15, 30)" value={editingDebt.dueDay||""} onChange={e=>setEditingDebt(p=>({...p,dueDay:parseInt(e.target.value)||null}))}/>
+            <input style={inp} placeholder="Nombre" value={editingDebt.name} onChange={e=>setEditingDebt(p=>({...p,name:e.target.value}))}/>
+            <select style={inp} value={editingDebt.type||"capital_interes"} onChange={e=>setEditingDebt(p=>({...p,type:e.target.value}))}>
+              <option value="capital_interes">Capital + Interés (cuota incluye ambos)</option>
+              <option value="solo_interes">Solo Interés (capital no baja)</option>
+              <option value="solo_capital">Solo Capital (sin interés)</option>
+            </select>
+            <NumInput style={inp} placeholder="Capital pendiente" value={editingDebt.remaining} onChange={v=>setEditingDebt(p=>({...p,remaining:v}))}/>
+            <NumInput style={inp} placeholder="Cuota mensual" value={editingDebt.monthly} onChange={v=>setEditingDebt(p=>({...p,monthly:v}))}/>
+            {(editingDebt.type==="solo_interes"||editingDebt.type==="capital_interes")&&(
+              <input style={{...inp,marginBottom:"8px"}} type="text" inputMode="decimal" placeholder="Tasa de interés % mensual (ej: 5, 7)" value={editingDebt.rate||""} onChange={e=>setEditingDebt(p=>({...p,rate:parseFloat(e.target.value)||0}))}/>
+            )}
+            <input style={inp} type="text" inputMode="numeric" placeholder="Día de pago del mes (ej: 5)" value={editingDebt.dueDay||""} onChange={e=>setEditingDebt(p=>({...p,dueDay:parseInt(e.target.value)||null}))}/>
             <div style={{display:"flex",gap:"6px",marginBottom:"10px"}}>
-              {["#ef4444","#f97316","#f59e0b","#10b981","#3b82f6","#8b5cf6","#ec4899"].map(c=><div key={c} onClick={()=>setEditingDebt(p=>({...p,color:c}))} style={{width:"22px",height:"22px",borderRadius:"50%",background:c,cursor:"pointer",border:editingDebt.color===c?"3px solid #fff":"3px solid transparent"}}/>)}
+              {colors.map(c=><div key={c} onClick={()=>setEditingDebt(p=>({...p,color:c}))} style={{width:"22px",height:"22px",borderRadius:"50%",background:c,cursor:"pointer",border:editingDebt.color===c?"3px solid #fff":"3px solid transparent"}}/>)}
             </div>
             <div style={{display:"flex",gap:"8px"}}>
               <button style={s.btn()} onClick={saveDebtEdit}>Guardar</button>
@@ -687,42 +888,58 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Summary */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"10px"}}>
         <div style={{...s.card,background:"#1a0808",border:"1px solid #ef444433"}}>
           <div style={s.label}>Deuda total</div>
-          <div style={{...s.bigNum,color:"#ef4444",fontSize:"20px"}}>{fmtShort(totalDebt)}</div>
+          <div style={{fontSize:"16px",fontWeight:"800",color:"#ef4444"}}>{fmt(totalDebt)}</div>
         </div>
         <div style={{...s.card,background:"#1a0f00",border:"1px solid #f59e0b33"}}>
           <div style={s.label}>Cuotas/mes</div>
-          <div style={{...s.bigNum,color:"#f59e0b",fontSize:"20px"}}>{fmtShort(totalMonthly)}</div>
+          <div style={{fontSize:"16px",fontWeight:"800",color:"#f59e0b"}}>{fmt(totalMonthly)}</div>
         </div>
       </div>
-      {/* Resumen por grupo */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"10px"}}>
         <div style={{...s.card,background:"#1a0808",border:"1px solid #ef444433"}}>
-          <div style={s.label}>Deudas personales</div>
-          <div style={{fontSize:"16px",fontWeight:"800",color:"#ef4444"}}>{new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",minimumFractionDigits:0}).format(debts.slice(0,10).reduce((s,d)=>s+d.remaining,0))}</div>
+          <div style={s.label}>Personales</div>
+          <div style={{fontSize:"14px",fontWeight:"800",color:"#ef4444"}}>{fmt(debts.slice(0,10).reduce((s,d)=>s+d.remaining,0))}</div>
         </div>
         <div style={{...s.card,background:"#1a0f00",border:"1px solid #f59e0b33"}}>
           <div style={s.label}>Créditos virtuales</div>
-          <div style={{fontSize:"16px",fontWeight:"800",color:"#f59e0b"}}>{new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",minimumFractionDigits:0}).format(debts.slice(10).reduce((s,d)=>s+d.remaining,0))}</div>
+          <div style={{fontSize:"14px",fontWeight:"800",color:"#f59e0b"}}>{fmt(debts.slice(10).reduce((s,d)=>s+d.remaining,0))}</div>
         </div>
       </div>
+
+      {totalMonthly>income&&(
         <div style={{...s.card,background:"#1a0808",border:"1px solid #ef4444",marginBottom:"10px"}}>
           <div style={{fontSize:"12px",color:"#ef4444",fontWeight:"700"}}>⚠️ Cuotas superan ingresos registrados</div>
           <div style={{fontSize:"11px",color:"#94a3b8",marginTop:"3px"}}>Déficit: {fmt(totalMonthly-income)}</div>
         </div>
       )}
+
       <div style={{display:"flex",justifyContent:"flex-end",marginBottom:"10px"}}>
         <button style={s.btn()} onClick={()=>setShowDebtForm(f=>!f)}>+ Nueva deuda</button>
       </div>
+
       {showDebtForm&&(
         <div style={{...s.card,marginBottom:"10px",border:"1px solid #ef444433"}}>
-          <input style={{...s.input,marginBottom:"8px"}} placeholder="Nombre (ej: Addi)" value={newDebt.name} onChange={e=>setNewDebt(p=>({...p,name:e.target.value}))}/>
-          <input style={{...s.input,marginBottom:"8px"}} type="number" placeholder="Saldo que debes hoy" value={newDebt.remaining} onChange={e=>setNewDebt(p=>({...p,remaining:e.target.value,total:e.target.value}))}/>
-          <input style={{...s.input,marginBottom:"8px"}} type="number" placeholder="Cuota mensual" value={newDebt.monthly} onChange={e=>setNewDebt(p=>({...p,monthly:e.target.value}))}/>
+          <div style={{fontSize:"13px",fontWeight:"700",color:"#ef4444",marginBottom:"10px"}}>Nueva deuda</div>
+          <input style={inp} placeholder="Nombre" value={newDebt.name} onChange={e=>setNewDebt(p=>({...p,name:e.target.value}))}/>
+          <select style={inp} value={newDebt.type} onChange={e=>setNewDebt(p=>({...p,type:e.target.value}))}>
+            <option value="capital_interes">Capital + Interés (cuota incluye ambos)</option>
+            <option value="solo_interes">Solo Interés (capital no baja)</option>
+            <option value="solo_capital">Solo Capital (sin interés)</option>
+          </select>
+          <NumInput style={inp} placeholder="Capital total" value={newDebt.total} onChange={v=>setNewDebt(p=>({...p,total:v,remaining:v}))}/>
+          <NumInput style={inp} placeholder="Saldo pendiente hoy" value={newDebt.remaining} onChange={v=>setNewDebt(p=>({...p,remaining:v}))}/>
+          <NumInput style={inp} placeholder="Cuota mensual" value={newDebt.monthly} onChange={v=>setNewDebt(p=>({...p,monthly:v}))}/>
+          {(newDebt.type==="solo_interes"||newDebt.type==="capital_interes")&&(
+            <input style={inp} type="text" inputMode="decimal" placeholder="Tasa % mensual (ej: 5)" value={newDebt.rate} onChange={e=>setNewDebt(p=>({...p,rate:e.target.value}))}/>
+          )}
+          <input style={inp} type="text" inputMode="numeric" placeholder="Día de pago (ej: 5)" value={newDebt.dueDay} onChange={e=>setNewDebt(p=>({...p,dueDay:e.target.value}))}/>
           <div style={{display:"flex",gap:"6px",marginBottom:"10px"}}>
-            {["#ef4444","#f97316","#f59e0b","#10b981","#3b82f6","#8b5cf6","#ec4899"].map(c=><div key={c} onClick={()=>setNewDebt(p=>({...p,color:c}))} style={{width:"22px",height:"22px",borderRadius:"50%",background:c,cursor:"pointer",border:newDebt.color===c?"3px solid #fff":"3px solid transparent"}}/>)}
+            {colors.map(c=><div key={c} onClick={()=>setNewDebt(p=>({...p,color:c}))} style={{width:"22px",height:"22px",borderRadius:"50%",background:c,cursor:"pointer",border:newDebt.color===c?"3px solid #fff":"3px solid transparent"}}/>)}
           </div>
           <div style={{display:"flex",gap:"8px"}}>
             <button style={s.btn()} onClick={addDebt}>Guardar</button>
@@ -730,37 +947,64 @@ export default function App() {
           </div>
         </div>
       )}
+
       {debts.map(debt=>{
-        const pct=debt.total>0?Math.round(((debt.total-debt.remaining)/debt.total)*100):0;
-        const months=debt.monthly>0?Math.ceil(debt.remaining/debt.monthly):"∞";
+        const pct = debt.total>0 ? Math.round(((debt.total-debt.remaining)/debt.total)*100) : 0;
+        const interestAmt = debt.rate>0 ? Math.round(debt.remaining*debt.rate/100) : 0;
+        const capitalAmt = debt.type==="solo_interes" ? 0 : debt.type==="solo_capital" ? debt.monthly : Math.max(0, debt.monthly - interestAmt);
+        const months = debt.type==="solo_interes" ? "∞" : capitalAmt>0 ? Math.ceil(debt.remaining/capitalAmt) : "∞";
+        const typeInfo = DEBT_TYPE_LABELS[debt.type||"capital_interes"];
         return(
           <div key={debt.id} style={{...s.card,borderLeft:`3px solid ${debt.color}`}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"8px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"6px"}}>
               <div>
                 <div style={{fontSize:"14px",fontWeight:"700",color:debt.color}}>{debt.name}</div>
-                <div style={{fontSize:"11px",color:"#476282",marginTop:"2px"}}>{fmt(debt.monthly)}/mes · {months} {months!=="∞"?"mes(es)":""}</div>
+                <div style={{display:"flex",alignItems:"center",gap:"6px",marginTop:"2px"}}>
+                  <span style={{fontSize:"10px",background:typeInfo.color+"22",color:typeInfo.color,padding:"1px 6px",borderRadius:"8px",fontWeight:"600"}}>{typeInfo.label}</span>
+                  {debt.rate>0&&<span style={{fontSize:"10px",color:"#476282"}}>{debt.rate}% mensual</span>}
+                  {debt.dueDay&&<span style={{fontSize:"10px",color:"#476282"}}>Día {debt.dueDay}</span>}
+                </div>
               </div>
               <div style={{textAlign:"right"}}>
                 <div style={{fontSize:"16px",fontWeight:"800",color:"#ef4444"}}>{fmt(debt.remaining)}</div>
-                <div style={{fontSize:"10px",color:"#476282"}}>pendiente</div>
+                <div style={{fontSize:"10px",color:"#476282"}}>capital pendiente</div>
               </div>
             </div>
-            <div style={{background:"#1a3454",borderRadius:"4px",height:"5px",marginBottom:"8px"}}>
+
+            {/* Payment breakdown */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"4px",marginBottom:"8px"}}>
+              <div style={{background:"#08111f",borderRadius:"6px",padding:"5px",textAlign:"center"}}>
+                <div style={{fontSize:"9px",color:"#476282"}}>Cuota</div>
+                <div style={{fontSize:"11px",fontWeight:"700",color:"#e2e8f0"}}>{fmt(debt.monthly)}</div>
+              </div>
+              <div style={{background:"#1a0808",borderRadius:"6px",padding:"5px",textAlign:"center"}}>
+                <div style={{fontSize:"9px",color:"#476282"}}>Interés</div>
+                <div style={{fontSize:"11px",fontWeight:"700",color:"#f59e0b"}}>{fmt(interestAmt)}</div>
+              </div>
+              <div style={{background:"#071a12",borderRadius:"6px",padding:"5px",textAlign:"center"}}>
+                <div style={{fontSize:"9px",color:"#476282"}}>A capital</div>
+                <div style={{fontSize:"11px",fontWeight:"700",color:"#10b981"}}>{fmt(capitalAmt)}</div>
+              </div>
+            </div>
+
+            <div style={{background:"#1a3454",borderRadius:"4px",height:"4px",marginBottom:"6px"}}>
               <div style={{background:debt.color,height:"100%",borderRadius:"4px",width:pct+"%"}}/>
             </div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <span style={{fontSize:"11px",color:"#476282"}}>{pct}% pagado</span>
-              <div style={{display:"flex",gap:"6px"}}>
-                {debt.remaining>0&&<button onClick={()=>payDebt(debt.id)} style={{...s.btn("#071a12"),color:"#10b981",border:"1px solid #10b98133",fontSize:"12px",padding:"5px 12px"}}>✓ Pagar</button>}
-                {debt.remaining===0&&<span style={{fontSize:"12px",color:"#10b981",fontWeight:"700"}}>🎉 ¡Pagada!</span>}
-                <button onClick={()=>setEditingDebt({...debt})} style={{background:"#1a3454",border:"none",borderRadius:"6px",padding:"5px 8px",cursor:"pointer",fontSize:"12px",color:"#94a3b8"}}>✏️</button>
-                <button onClick={()=>deleteDebt(debt.id)} style={{background:"#2a1a1a",border:"none",borderRadius:"6px",padding:"5px 8px",cursor:"pointer",fontSize:"12px",color:"#ef4444"}}>🗑️</button>              </div>
+              <span style={{fontSize:"11px",color:"#476282"}}>{pct}% pagado · {months!=="∞"?`${months} mes(es)`:debt.type==="solo_interes"?"Solo interés perpetuo":"∞"}</span>
+              <div style={{display:"flex",gap:"5px"}}>
+                {debt.remaining>0&&<button onClick={()=>openPayDialog(debt.id)} style={{...s.btn("#071a12"),color:"#10b981",border:"1px solid #10b98133",fontSize:"11px",padding:"4px 10px"}}>💳 Pagar</button>}
+                {debt.remaining===0&&debt.type!=="solo_interes"&&<span style={{fontSize:"11px",color:"#10b981",fontWeight:"700"}}>🎉 ¡Pagado!</span>}
+                <button onClick={()=>setEditingDebt({...debt})} style={{background:"#1a3454",border:"none",borderRadius:"6px",padding:"4px 7px",cursor:"pointer",fontSize:"11px",color:"#94a3b8"}}>✏️</button>
+                <button onClick={()=>deleteDebt(debt.id)} style={{background:"#2a1a1a",border:"none",borderRadius:"6px",padding:"4px 7px",cursor:"pointer",fontSize:"11px",color:"#ef4444"}}>🗑️</button>
+              </div>
             </div>
           </div>
         );
       })}
     </div>
-  );
+    );
+  };
 
   const ChatIA=()=>{
     const endRef=useRef(null);
@@ -824,7 +1068,7 @@ export default function App() {
       <div style={s.card}>
         <div style={s.secTitle}>🎯 Meta de ahorro mensual</div>
         <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"10px"}}>
-          <input type="number" value={savingsGoal} onChange={e=>setSavingsGoal(parseInt(e.target.value)||0)}
+          <NumInput value={savingsGoal} onChange={v=>setSavingsGoal(v)}
             style={{...s.input,width:"150px",fontSize:"16px",fontWeight:"700"}}/>
           <span style={{fontSize:"12px",color:"#476282"}}>meta/mes</span>
         </div>
@@ -898,6 +1142,89 @@ export default function App() {
     </div>
   );
 
+  const Categorias=()=>{
+    const [tab,        setTab]        = useState("expense");
+    const [newGroup,   setNewGroup]   = useState("");
+    const [newItem,    setNewItem]    = useState({group:"", value:""});
+    const [editItem,   setEditItem]   = useState(null);
+    const [editVal,    setEditVal]    = useState("");
+
+    const groups = tab==="expense" ? expCats : incCats;
+    const setGroups = tab==="expense" ? setExpCats : setIncCats;
+
+    const addGroup = () => { if(!newGroup.trim())return; setGroups(p=>[...p,{group:newGroup.trim(),icon:"📦",items:[]}]); setNewGroup(""); };
+    const delGroup = g => setGroups(p=>p.filter(x=>x.group!==g));
+    const addItem  = g => { if(!newItem.value.trim()||newItem.group!==g)return; setGroups(p=>p.map(x=>x.group===g?{...x,items:[...x.items,newItem.value.trim()]}:x)); setNewItem({group:"",value:""}); };
+    const delItem  = (g,item) => setGroups(p=>p.map(x=>x.group===g?{...x,items:x.items.filter(i=>i!==item)}:x));
+    const startEdit= (g,item) => { setEditItem({g,item}); setEditVal(item); };
+    const saveEdit = () => { if(!editVal.trim())return; setGroups(p=>p.map(x=>x.group===editItem.g?{...x,items:x.items.map(i=>i===editItem.item?editVal.trim():i)}:x)); setEditItem(null); };
+
+    const inp = {width:"100%",background:"#08111f",border:"1px solid #1e3a5f",borderRadius:"9px",padding:"10px 12px",color:"#e2e8f0",fontSize:"14px",fontFamily:"'Sora',sans-serif",outline:"none",boxSizing:"border-box"};
+
+    return(
+      <div>
+        <div style={{...s.card,background:"#071a12",border:"1px solid #10b98133"}}>
+          <div style={{fontSize:"13px",color:"#10b981",fontWeight:"600"}}>🏷️ Categorías agrupadas</div>
+          <div style={{fontSize:"11px",color:"#476282",marginTop:"2px"}}>Grupos y subcategorías como en Wallet.</div>
+        </div>
+
+        <div style={{display:"flex",gap:"8px",marginBottom:"12px"}}>
+          {["expense","income"].map(t=>(
+            <button key={t} onClick={()=>setTab(t)} style={{padding:"7px 16px",borderRadius:"18px",border:`1px solid ${tab===t?"#10b981":"#1e3a5f"}`,background:tab===t?"#10b981":"transparent",color:tab===t?"#000":"#64748b",fontSize:"12px",fontWeight:"600",cursor:"pointer",fontFamily:"'Sora',sans-serif"}}>
+              {t==="expense"?"💸 Gastos":"💰 Ingresos"}
+            </button>
+          ))}
+        </div>
+
+        {/* Add group */}
+        <div style={{display:"flex",gap:"8px",marginBottom:"12px"}}>
+          <input style={{...inp,flex:1}} placeholder="Nuevo grupo (ej: Salud)" value={newGroup} onChange={e=>setNewGroup(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addGroup()}/>
+          <button onClick={addGroup} style={{background:"#3b82f6",color:"#fff",border:"none",borderRadius:"9px",padding:"10px 14px",fontSize:"13px",fontWeight:"700",cursor:"pointer",fontFamily:"'Sora',sans-serif"}}>+ Grupo</button>
+        </div>
+
+        {groups.map(g=>(
+          <div key={g.group} style={{...s.card,marginBottom:"8px"}}>
+            {/* Group header */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}}>
+              <div style={{fontSize:"14px",fontWeight:"700",color:"#e2e8f0"}}>{g.icon} {g.group}</div>
+              <button onClick={()=>delGroup(g.group)} style={{background:"#2a1a1a",border:"none",borderRadius:"6px",padding:"4px 8px",cursor:"pointer",fontSize:"11px",color:"#ef4444"}}>🗑️ Grupo</button>
+            </div>
+
+            {/* Items */}
+            {g.items.map(item=>(
+              <div key={item} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 0 6px 12px",borderBottom:"1px solid #1a345422"}}>
+                {editItem?.g===g.group&&editItem?.item===item ? (
+                  <div style={{display:"flex",gap:"6px",flex:1,marginRight:"8px"}}>
+                    <input style={{...inp,flex:1,padding:"5px 10px",fontSize:"13px"}} value={editVal} onChange={e=>setEditVal(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveEdit()} autoFocus/>
+                    <button onClick={saveEdit} style={{background:"#10b981",color:"#000",border:"none",borderRadius:"6px",padding:"5px 10px",cursor:"pointer",fontSize:"12px",fontWeight:"700"}}>✓</button>
+                  </div>
+                ) : (
+                  <span style={{fontSize:"13px",color:"#94a3b8"}}>• {item}</span>
+                )}
+                {!(editItem?.g===g.group&&editItem?.item===item)&&(
+                  <div style={{display:"flex",gap:"4px"}}>
+                    <button onClick={()=>startEdit(g.group,item)} style={{background:"#1a3454",border:"none",borderRadius:"5px",padding:"3px 7px",cursor:"pointer",fontSize:"11px",color:"#94a3b8"}}>✏️</button>
+                    <button onClick={()=>delItem(g.group,item)} style={{background:"#2a1a1a",border:"none",borderRadius:"5px",padding:"3px 7px",cursor:"pointer",fontSize:"11px",color:"#ef4444"}}>🗑️</button>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* Add item to group */}
+            <div style={{display:"flex",gap:"6px",marginTop:"8px"}}>
+              <input style={{...inp,flex:1,padding:"7px 10px",fontSize:"12px"}}
+                placeholder={`+ Subcategoría en ${g.group}`}
+                value={newItem.group===g.group?newItem.value:""}
+                onChange={e=>setNewItem({group:g.group,value:e.target.value})}
+                onKeyDown={e=>e.key==="Enter"&&addItem(g.group)}/>
+              <button onClick={()=>addItem(g.group)} style={{background:"#10b98133",color:"#10b981",border:"1px solid #10b98155",borderRadius:"7px",padding:"7px 12px",cursor:"pointer",fontSize:"12px",fontWeight:"700"}}>+</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const nav=[
     {id:"dashboard",   label:"📊 Panel"},
     {id:"accounts",    label:"🏦 Cuentas"},
@@ -905,6 +1232,7 @@ export default function App() {
     {id:"budget",      label:"🎯 Presupuesto"},
     {id:"debts",       label:"🔴 Deudas"},
     {id:"reportes",    label:"📈 Reportes"},
+    {id:"categorias",  label:"🏷️ Categorías"},
     {id:"chat",        label:"🤖 Chat IA"},
   ];
 
@@ -933,6 +1261,7 @@ export default function App() {
         {view==="budget"       && <Presupuesto/>}
         {view==="debts"        && <Deudas/>}
         {view==="reportes"     && <Reportes/>}
+        {view==="categorias"   && <Categorias/>}
         {view==="chat"         && <ChatIA/>}
       </div>
     </div>
