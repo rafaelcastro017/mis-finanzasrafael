@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, AreaChart, Area, XAxis, YAxis } from "recharts";
 
 // ── FIREBASE CONFIG ───────────────────────────────────────────────────────────
 const FB_URL = "https://firestore.googleapis.com/v1/projects/mis-finanzas-c93f6/databases/(default)/documents/finanzas/main";
@@ -222,6 +222,7 @@ export default function App() {
   const [history,      setHistory]      = useState([]);
   const [undoMsg,      setUndoMsg]      = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [savingsGoal, setSavingsGoal] = useState(500000);
   const [filterUser,   setFilterUser]   = useState("Todos");
   const [ready,        setReady]        = useState(false);
   const [showForm,     setShowForm]     = useState(false);
@@ -404,6 +405,18 @@ export default function App() {
           <div style={{fontSize:"15px",fontWeight:"800",color:income-expense>=0?"#10b981":"#ef4444"}}>{fmtShort(income-expense)}</div>
         </div>
       </div>
+
+      {dueThisWeek.length>0&&(
+        <div style={{...s.card,background:"#1a0f00",border:"1px solid #f59e0b",marginBottom:"10px"}}>
+          <div style={{fontSize:"12px",color:"#f59e0b",fontWeight:"700",marginBottom:"6px"}}>⏰ Pagos próximos esta semana</div>
+          {dueThisWeek.map(d=>(
+            <div key={d.id} style={{display:"flex",justifyContent:"space-between",fontSize:"12px",padding:"3px 0"}}>
+              <span style={{color:"#e2e8f0"}}>{d.name}</span>
+              <span style={{color:"#f59e0b",fontWeight:"700"}}>{fmt(d.monthly)} · día {d.dueDay}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {totalDebt>0&&(
         <div style={{...s.card,background:"#1a0808",border:"1px solid #ef444433"}}>
@@ -663,9 +676,7 @@ export default function App() {
             <input style={{...s.input,marginBottom:"8px"}} placeholder="Nombre" value={editingDebt.name} onChange={e=>setEditingDebt(p=>({...p,name:e.target.value}))}/>
             <input style={{...s.input,marginBottom:"8px"}} type="number" placeholder="Saldo pendiente" value={editingDebt.remaining} onChange={e=>setEditingDebt(p=>({...p,remaining:e.target.value}))}/>
             <input style={{...s.input,marginBottom:"8px"}} type="number" placeholder="Cuota mensual" value={editingDebt.monthly} onChange={e=>setEditingDebt(p=>({...p,monthly:e.target.value}))}/>
-            <div style={{fontSize:"11px",color:"#476282",marginBottom:"6px"}}>
-              {editingDebt.monthly>0&&editingDebt.remaining>0&&`Meses restantes: ${Math.ceil(parseInt(editingDebt.remaining)/parseInt(editingDebt.monthly))}`}
-            </div>
+            <input style={{...s.input,marginBottom:"8px"}} type="number" placeholder="Día de pago (ej: 5, 15, 30)" value={editingDebt.dueDay||""} onChange={e=>setEditingDebt(p=>({...p,dueDay:parseInt(e.target.value)||null}))}/>
             <div style={{display:"flex",gap:"6px",marginBottom:"10px"}}>
               {["#ef4444","#f97316","#f59e0b","#10b981","#3b82f6","#8b5cf6","#ec4899"].map(c=><div key={c} onClick={()=>setEditingDebt(p=>({...p,color:c}))} style={{width:"22px",height:"22px",borderRadius:"50%",background:c,cursor:"pointer",border:editingDebt.color===c?"3px solid #fff":"3px solid transparent"}}/>)}
             </div>
@@ -777,12 +788,123 @@ export default function App() {
     );
   };
 
+  // ── PAYMENT REMINDERS ────────────────────────────────────────────────────────
+  const today2 = new Date();
+  const dayOfMonth = today2.getDate();
+  const dueThisWeek = debts.filter(d => d.remaining > 0 && d.dueDay && Math.abs(d.dueDay - dayOfMonth) <= 5);
+
+  // ── MONTH COMPARISON DATA ─────────────────────────────────────────────────────
+  const last6Months = Array.from({length:6},(_,i)=>{
+    const d = new Date(); d.setMonth(d.getMonth()-i);
+    return d.toISOString().slice(0,7);
+  }).reverse();
+
+  const monthCompData = last6Months.map(m=>{
+    const txs = transactions.filter(t=>t.date.startsWith(m));
+    return {
+      mes: m.slice(5)+"/"+m.slice(2,4),
+      ingresos: txs.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0),
+      gastos: txs.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0),
+    };
+  });
+
+  // ── DEBT PROJECTION ───────────────────────────────────────────────────────────
+  const debtProjection = Array.from({length:24},(_,i)=>{
+    const totalRemaining = debts.reduce((s,d)=>{
+      const remaining = Math.max(0, d.remaining - (d.monthly * i));
+      return s + remaining;
+    },0);
+    const d = new Date(); d.setMonth(d.getMonth()+i);
+    return { mes: d.toISOString().slice(5,7)+"/"+d.toISOString().slice(2,4), deuda: totalRemaining };
+  });
+
+  const Reportes=()=>(
+    <div>
+      {/* Meta de ahorro */}
+      <div style={s.card}>
+        <div style={s.secTitle}>🎯 Meta de ahorro mensual</div>
+        <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"10px"}}>
+          <input type="number" value={savingsGoal} onChange={e=>setSavingsGoal(parseInt(e.target.value)||0)}
+            style={{...s.input,width:"150px",fontSize:"16px",fontWeight:"700"}}/>
+          <span style={{fontSize:"12px",color:"#476282"}}>meta/mes</span>
+        </div>
+        {(() => {
+          const saved = income - expense;
+          const pct = savingsGoal > 0 ? Math.min((saved/savingsGoal)*100, 100) : 0;
+          const onTrack = saved >= savingsGoal;
+          return (
+            <>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:"6px"}}>
+                <span style={{fontSize:"13px",color:onTrack?"#10b981":"#f59e0b",fontWeight:"700"}}>{onTrack?"✅ ¡Meta cumplida!":"⚠️ Por debajo de la meta"}</span>
+                <span style={{fontSize:"13px",fontWeight:"700",color:onTrack?"#10b981":"#f59e0b"}}>{fmt(saved)} / {fmt(savingsGoal)}</span>
+              </div>
+              <div style={{background:"#1a3454",borderRadius:"6px",height:"8px"}}>
+                <div style={{background:onTrack?"#10b981":"#f59e0b",height:"100%",borderRadius:"6px",width:Math.max(pct,0)+"%"}}/>
+              </div>
+            </>
+          );
+        })()}
+      </div>
+
+      {/* Reporte mensual */}
+      <div style={s.card}>
+        <div style={s.secTitle}>📋 Reporte — {thisMonth()}</div>
+        {[
+          {label:"Ingresos totales", value:income, color:"#10b981"},
+          {label:"Gastos totales",   value:expense, color:"#ef4444"},
+          {label:"Pagos de deudas",  value:monthTxs.filter(t=>t.type==="expense"&&t.category==="Préstamos / Cuotas").reduce((s,t)=>s+t.amount,0), color:"#f59e0b"},
+          {label:"Balance neto",     value:income-expense, color:income-expense>=0?"#10b981":"#ef4444"},
+        ].map(r=>(
+          <div key={r.label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #1a345422"}}>
+            <span style={{fontSize:"13px",color:"#94a3b8"}}>{r.label}</span>
+            <span style={{fontSize:"14px",fontWeight:"700",color:r.color}}>{fmt(r.value)}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Comparativo de meses */}
+      <div style={s.card}>
+        <div style={s.secTitle}>📊 Comparativo últimos 6 meses</div>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={monthCompData} barSize={16}>
+            <XAxis dataKey="mes" tick={{fontSize:10,fill:"#476282"}}/>
+            <YAxis tick={{fontSize:9,fill:"#476282"}} tickFormatter={v=>v>=1000000?`$${(v/1000000).toFixed(1)}M`:v>=1000?`$${(v/1000).toFixed(0)}K`:`$${v}`}/>
+            <Tooltip formatter={v=>fmt(v)} contentStyle={{background:"#0b1930",border:"1px solid #1a3454",borderRadius:"8px",color:"#e2e8f0",fontSize:"12px"}}/>
+            <Bar dataKey="ingresos" fill="#10b981" name="Ingresos" radius={[4,4,0,0]}/>
+            <Bar dataKey="gastos"   fill="#ef4444" name="Gastos"   radius={[4,4,0,0]}/>
+          </BarChart>
+        </ResponsiveContainer>
+        <div style={{display:"flex",gap:"16px",justifyContent:"center",marginTop:"6px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:"4px",fontSize:"11px",color:"#94a3b8"}}><div style={{width:"10px",height:"10px",borderRadius:"2px",background:"#10b981"}}/> Ingresos</div>
+          <div style={{display:"flex",alignItems:"center",gap:"4px",fontSize:"11px",color:"#94a3b8"}}><div style={{width:"10px",height:"10px",borderRadius:"2px",background:"#ef4444"}}/> Gastos</div>
+        </div>
+      </div>
+
+      {/* Proyección de deudas */}
+      <div style={s.card}>
+        <div style={s.secTitle}>📉 Proyección de deudas (24 meses)</div>
+        <ResponsiveContainer width="100%" height={200}>
+          <AreaChart data={debtProjection}>
+            <XAxis dataKey="mes" tick={{fontSize:9,fill:"#476282"}} interval={3}/>
+            <YAxis tick={{fontSize:9,fill:"#476282"}} tickFormatter={v=>v>=1000000?`$${(v/1000000).toFixed(0)}M`:v>=1000?`$${(v/1000).toFixed(0)}K`:`$${v}`}/>
+            <Tooltip formatter={v=>fmt(v)} contentStyle={{background:"#0b1930",border:"1px solid #1a3454",borderRadius:"8px",color:"#e2e8f0",fontSize:"12px"}}/>
+            <Area type="monotone" dataKey="deuda" stroke="#ef4444" fill="#ef444422" name="Deuda total"/>
+          </AreaChart>
+        </ResponsiveContainer>
+        <div style={{fontSize:"11px",color:"#476282",textAlign:"center",marginTop:"6px"}}>
+          {debtProjection.find(d=>d.deuda===0) ? `✅ Libre de deudas en ${debtProjection.find(d=>d.deuda===0)?.mes}` : "Ajusta las cuotas para acelerar el pago"}
+        </div>
+      </div>
+    </div>
+  );
+
   const nav=[
     {id:"dashboard",   label:"📊 Panel"},
     {id:"accounts",    label:"🏦 Cuentas"},
     {id:"transactions",label:"💸 Movimientos"},
     {id:"budget",      label:"🎯 Presupuesto"},
     {id:"debts",       label:"🔴 Deudas"},
+    {id:"reportes",    label:"📈 Reportes"},
     {id:"chat",        label:"🤖 Chat IA"},
   ];
 
@@ -810,6 +932,7 @@ export default function App() {
         {view==="transactions" && <Transacciones/>}
         {view==="budget"       && <Presupuesto/>}
         {view==="debts"        && <Deudas/>}
+        {view==="reportes"     && <Reportes/>}
         {view==="chat"         && <ChatIA/>}
       </div>
     </div>
