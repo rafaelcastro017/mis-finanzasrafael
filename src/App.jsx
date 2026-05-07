@@ -112,6 +112,82 @@ function CalendarPicker({value, onChange}) {
   );
 }
 
+// ── TRANSACTION FORM ─────────────────────────────────────────────────────────
+function TransactionForm({accounts, onSave, onCancel}) {
+  const [tx, setTx] = useState({
+    user:"Rafael", account: accounts[0]?.id || "finandina",
+    type:"expense", category:"Comestibles",
+    amount:"", description:"", date:new Date().toISOString().split("T")[0], shared:false
+  });
+
+  const EXP = ["Comestibles","Restaurante","Bar / Cafetería","Combustible","Aseo hogar","Aseo personal","Mascotas","Ropa y calzado","Alcohol / Tabaco","Internet","Teléfono","Suscripciones","Préstamos / Cuotas","Arriendo Novaglamp","Insumos Novaglamp","Insumos Batidos","Salud","Educación","Donaciones","Otros"];
+  const INC = ["Salario","Hipnoterapia","Novaglamp - Hospedaje","Novaglamp - Bebidas","Novaglamp - Comida","Novaglamp - Masajes","Batidos Saludables","Préstamo recibido","Reembolso","Otros ingresos"];
+
+  const inp = {width:"100%",background:"#08111f",border:"1px solid #1e3a5f",borderRadius:"9px",padding:"12px",color:"#e2e8f0",fontSize:"16px",fontFamily:"'Sora',sans-serif",outline:"none",boxSizing:"border-box",marginBottom:"8px"};
+  const sel = {...inp};
+  const btn = (bg="#10b981",tc="#000")=>({background:bg,color:tc,border:"none",borderRadius:"9px",padding:"10px 20px",fontSize:"14px",fontWeight:"600",cursor:"pointer",fontFamily:"'Sora',sans-serif"});
+
+  const save = () => {
+    if(!tx.amount||!tx.description) return;
+    onSave(tx);
+  };
+
+  return (
+    <div style={{background:"#0b1930",border:"1px solid #10b98133",borderRadius:"14px",padding:"14px",marginBottom:"10px"}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"8px"}}>
+        <select style={sel} value={tx.user} onChange={e=>setTx(p=>({...p,user:e.target.value}))}>
+          {["Rafael","Pareja"].map(u=><option key={u}>{u}</option>)}
+        </select>
+        <select style={sel} value={tx.type} onChange={e=>setTx(p=>({...p,type:e.target.value,category:e.target.value==="income"?INC[0]:EXP[0]}))}>
+          <option value="expense">💸 Gasto</option>
+          <option value="income">💰 Ingreso</option>
+        </select>
+      </div>
+      <select style={sel} value={tx.account} onChange={e=>setTx(p=>({...p,account:e.target.value}))}>
+        {accounts.map(a=><option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
+      </select>
+      <select style={sel} value={tx.category} onChange={e=>setTx(p=>({...p,category:e.target.value}))}>
+        {(tx.type==="income"?INC:EXP).map(c=><option key={c}>{c}</option>)}
+      </select>
+      <input
+        style={inp}
+        type="number"
+        inputMode="numeric"
+        placeholder="Monto en COP"
+        value={tx.amount}
+        onChange={e=>setTx(p=>({...p,amount:e.target.value}))}
+      />
+      <input
+        style={inp}
+        type="text"
+        inputMode="text"
+        placeholder="Descripción"
+        value={tx.description}
+        onChange={e=>setTx(p=>({...p,description:e.target.value}))}
+      />
+      <div style={{marginBottom:"8px"}}>
+        <div style={{fontSize:"11px",color:"#476282",marginBottom:"6px",fontWeight:"600",textTransform:"uppercase",letterSpacing:"1px"}}>Fecha</div>
+        <CalendarPicker value={tx.date} onChange={d=>setTx(p=>({...p,date:d}))}/>
+      </div>
+      {tx.type==="expense"&&(
+        <div onClick={()=>setTx(p=>({...p,shared:!p.shared}))} style={{display:"flex",alignItems:"center",gap:"10px",padding:"10px 12px",borderRadius:"9px",border:`1px solid ${tx.shared?"#10b981":"#1e3a5f"}`,background:tx.shared?"#071a12":"transparent",cursor:"pointer",marginBottom:"10px"}}>
+          <div style={{width:"18px",height:"18px",borderRadius:"5px",background:tx.shared?"#10b981":"#1a3454",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"11px"}}>{tx.shared?"✓":""}</div>
+          <div>
+            <div style={{fontSize:"12px",fontWeight:"500",color:tx.shared?"#10b981":"#94a3b8"}}>Gasto compartido 50/50</div>
+            {tx.amount&&<div style={{fontSize:"10px",color:"#476282"}}>
+              Rafael: {new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",minimumFractionDigits:0}).format(Math.round(parseInt(tx.amount||0)/2))} · Pareja: {new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",minimumFractionDigits:0}).format(parseInt(tx.amount||0)-Math.round(parseInt(tx.amount||0)/2))}
+            </div>}
+          </div>
+        </div>
+      )}
+      <div style={{display:"flex",gap:"8px"}}>
+        <button style={btn()} onClick={save}>Guardar</button>
+        <button style={btn("#1a3454","#94a3b8")} onClick={onCancel}>Cancelar</button>
+      </div>
+    </div>
+  );
+}
+
 // ── APP ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const [view,         setView]         = useState("dashboard");
@@ -212,18 +288,16 @@ export default function App() {
   const budgetRows=EXP_CATS.map(cat=>{const spent=monthTxs.filter(t=>t.type==="expense"&&t.category===cat).reduce((s,t)=>s+t.amount,0);const limit=budget[cat]||0;return{cat,spent,limit,pct:limit>0?Math.min((spent/limit)*100,100):0};});
 
   // ── ACTIONS ─────────────────────────────────────────────────────────────────
-  const addTx=()=>{
-    if(!newTx.amount||!newTx.description)return;
-    const total=parseInt(newTx.amount);
-    if(newTx.shared&&newTx.type==="expense"){
+  const addTx=tx=>{
+    if(!tx.amount||!tx.description)return;
+    const total=parseInt(tx.amount);
+    if(tx.shared&&tx.type==="expense"){
       const half=Math.round(total/2);
-      const base={category:newTx.category,description:newTx.description+" (compartido)",date:newTx.date,type:"expense",account:newTx.account,shared:true};
+      const base={category:tx.category,description:tx.description+" (compartido)",date:tx.date,type:"expense",account:tx.account,shared:true};
       setTransactions(p=>[{...base,id:Date.now(),user:"Rafael",amount:half},{...base,id:Date.now()+1,user:"Pareja",amount:total-half},...p]);
     }else{
-      setTransactions(p=>[{...newTx,id:Date.now(),amount:total},...p]);
+      setTransactions(p=>[{...tx,id:Date.now(),amount:total},...p]);
     }
-    setNewTx({user:"Rafael",account:"finandina",type:"expense",category:"Comestibles",amount:"",description:"",date:today(),shared:false});
-    setShowForm(false);
   };
   const saveHistory = (msg) => {
     setHistory(p=>[{accounts,transactions,debts,msg}, ...p.slice(0,9)]);
@@ -473,43 +547,12 @@ export default function App() {
         <button style={s.btn()} onClick={()=>setShowForm(f=>!f)}>+ Nuevo</button>
       </div>
 
-      {showForm&&(
-        <div style={{...s.card,marginBottom:"10px",border:"1px solid #10b98133"}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"8px"}}>
-            <select style={s.select} value={newTx.user} onChange={e=>setNewTx(p=>({...p,user:e.target.value}))}>
-              {USERS.map(u=><option key={u}>{u}</option>)}
-            </select>
-            <select style={s.select} value={newTx.type} onChange={e=>setNewTx(p=>({...p,type:e.target.value,category:e.target.value==="income"?INC_CATS[0]:EXP_CATS[0]}))}>
-              <option value="expense">💸 Gasto</option>
-              <option value="income">💰 Ingreso</option>
-            </select>
-          </div>
-          <select style={{...s.select,marginBottom:"8px"}} value={newTx.account} onChange={e=>setNewTx(p=>({...p,account:e.target.value}))}>
-            {accounts.map(a=><option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
-          </select>
-          <select style={{...s.select,marginBottom:"8px"}} value={newTx.category} onChange={e=>setNewTx(p=>({...p,category:e.target.value}))}>
-            {(newTx.type==="income"?INC_CATS:EXP_CATS).map(c=><option key={c}>{c}</option>)}
-          </select>
-          <input style={{...s.input,marginBottom:"8px"}} type="number" placeholder="Monto en COP" value={newTx.amount} onChange={e=>setNewTx(p=>({...p,amount:e.target.value}))}/>
-          <input style={{...s.input,marginBottom:"8px"}} type="text" placeholder="Descripción" value={newTx.description} onChange={e=>setNewTx(p=>({...p,description:e.target.value}))}/>
-          <div style={{marginBottom:"8px"}}>
-            <div style={{fontSize:"11px",color:"#476282",marginBottom:"6px",fontWeight:"600",textTransform:"uppercase",letterSpacing:"1px"}}>Fecha</div>
-            <CalendarPicker value={newTx.date} onChange={d=>setNewTx(p=>({...p,date:d}))}/>
-          </div>
-          {newTx.type==="expense"&&(
-            <div onClick={()=>setNewTx(p=>({...p,shared:!p.shared}))} style={{display:"flex",alignItems:"center",gap:"10px",padding:"10px 12px",borderRadius:"9px",border:`1px solid ${newTx.shared?"#10b981":"#1e3a5f"}`,background:newTx.shared?"#071a12":"transparent",cursor:"pointer",marginBottom:"10px"}}>
-              <div style={{width:"18px",height:"18px",borderRadius:"5px",background:newTx.shared?"#10b981":"#1a3454",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"11px"}}>{newTx.shared?"✓":""}</div>
-              <div>
-                <div style={{fontSize:"12px",fontWeight:"500",color:newTx.shared?"#10b981":"#94a3b8"}}>Gasto compartido 50/50</div>
-                {newTx.amount&&<div style={{fontSize:"10px",color:"#476282"}}>Rafael: {fmt(Math.round(parseInt(newTx.amount||0)/2))} · Pareja: {fmt(parseInt(newTx.amount||0)-Math.round(parseInt(newTx.amount||0)/2))}</div>}
-              </div>
-            </div>
-          )}
-          <div style={{display:"flex",gap:"8px"}}>
-            <button style={s.btn()} onClick={addTx}>Guardar</button>
-            <button style={s.btn("#1a3454","#94a3b8")} onClick={()=>setShowForm(false)}>Cancelar</button>
-          </div>
-        </div>
+      {showForm && (
+        <TransactionForm
+          accounts={accounts}
+          onSave={tx => { addTx(tx); setShowForm(false); }}
+          onCancel={() => setShowForm(false)}
+        />
       )}
 
       {editingTx&&(
