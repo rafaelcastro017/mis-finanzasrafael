@@ -75,6 +75,16 @@ const fmtShort = n => new Intl.NumberFormat("es-CO",{style:"currency",currency:"
 const today    = () => new Date().toISOString().split("T")[0];
 const thisMonth= () => new Date().toISOString().slice(0,7);
 
+// ── THEMES ────────────────────────────────────────────────────────────────────
+const THEMES = {
+  oscuro:    { name:"🌑 Oscuro",    bg:"#060d1c", card:"#0b1930", border:"#1a3454", nav:"#08111f", header:"#0a1628", input:"#08111f", accent:"#10b981", text:"#e2e8f0", muted:"#476282", bubble:"#0b1930" },
+  bosque:    { name:"🌿 Bosque",    bg:"#051208", card:"#0a1f0f", border:"#1a3d20", nav:"#071510", header:"#0a1a0f", input:"#071510", accent:"#22c55e", text:"#e8f5e0", muted:"#4a7a54", bubble:"#0a1f0f" },
+  oceano:    { name:"🌊 Océano",    bg:"#030e1e", card:"#071a30", border:"#0e3050", nav:"#050f20", header:"#071a30", input:"#050f20", accent:"#0ea5e9", text:"#d0eeff", muted:"#3a6a8a", bubble:"#071a30" },
+  atardecer: { name:"🌅 Atardecer", bg:"#1a0c00", card:"#2a1800", border:"#4a2c00", nav:"#150a00", header:"#2a1800", input:"#150a00", accent:"#f97316", text:"#f5e0c8", muted:"#8a5a30", bubble:"#2a1800" },
+  purpura:   { name:"💜 Púrpura",   bg:"#0d0818", card:"#1a0f2e", border:"#2d1a4a", nav:"#0d0818", header:"#1a0f2e", input:"#0d0818", accent:"#a855f7", text:"#ede0f8", muted:"#6a4a8a", bubble:"#1a0f2e" },
+  claro:     { name:"☀️ Claro",     bg:"#f0f4f8", card:"#ffffff", border:"#d0dce8", nav:"#ffffff", header:"#ffffff", input:"#f8fafc", accent:"#0d9488", text:"#1a2a3a", muted:"#6a8a9a", bubble:"#f0f4f8" },
+};
+
 // ── NUM INPUT — no pierde foco, muestra formato al salir ─────────────────────
 function NumInput({value, onChange, placeholder, style}) {
   const [focused, setFocused] = useState(false);
@@ -297,6 +307,78 @@ function TransactionForm({accounts, expGroups, incGroups, onSave, onCancel}) {
   );
 }
 
+// ── CATEGORY MANAGER ─────────────────────────────────────────────────────────
+function CatManager({expCats, incCats, setExpCats, setIncCats, s, T}) {
+  const [tab,      setTab]      = useState("expense");
+  const [newGroup, setNewGroup] = useState("");
+  const [newItem,  setNewItem]  = useState({group:"", value:""});
+  const [editItem, setEditItem] = useState(null);
+  const [editVal,  setEditVal]  = useState("");
+
+  const groups   = tab==="expense" ? expCats : incCats;
+  const setGroups= tab==="expense" ? setExpCats : setIncCats;
+
+  const addGroup = () => { if(!newGroup.trim())return; setGroups(p=>[...p,{group:newGroup.trim(),icon:"📦",items:[]}]); setNewGroup(""); };
+  const delGroup = g => setGroups(p=>p.filter(x=>x.group!==g));
+  const addItem  = g => { if(!newItem.value.trim()||newItem.group!==g)return; setGroups(p=>p.map(x=>x.group===g?{...x,items:[...x.items,newItem.value.trim()]}:x)); setNewItem({group:"",value:""}); };
+  const delItem  = (g,item) => setGroups(p=>p.map(x=>x.group===g?{...x,items:x.items.filter(i=>i!==item)}:x));
+  const saveEdit = () => { if(!editVal.trim())return; setGroups(p=>p.map(x=>x.group===editItem.g?{...x,items:x.items.map(i=>i===editItem.item?editVal.trim():i)}:x)); setEditItem(null); };
+
+  const inp = {...s.input, marginBottom:"8px", fontSize:"14px"};
+
+  return (
+    <div>
+      <div style={{display:"flex",gap:"8px",marginBottom:"12px"}}>
+        {["expense","income"].map(t=>(
+          <button key={t} onClick={()=>setTab(t)} style={{padding:"7px 16px",borderRadius:"18px",border:`1px solid ${tab===t?T.accent:T.border}`,background:tab===t?T.accent:"transparent",color:tab===t?"#000":T.muted,fontSize:"12px",fontWeight:"600",cursor:"pointer",fontFamily:"'Sora',sans-serif"}}>
+            {t==="expense"?"💸 Gastos":"💰 Ingresos"}
+          </button>
+        ))}
+      </div>
+
+      <div style={{display:"flex",gap:"8px",marginBottom:"12px"}}>
+        <input style={{...inp,flex:1,marginBottom:0}} placeholder="Nuevo grupo..." value={newGroup} onChange={e=>setNewGroup(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addGroup()}/>
+        <button onClick={addGroup} style={{background:"#3b82f6",color:"#fff",border:"none",borderRadius:"9px",padding:"10px 14px",fontSize:"13px",fontWeight:"700",cursor:"pointer"}}>+ Grupo</button>
+      </div>
+
+      {groups.map(g=>(
+        <div key={g.group} style={{...s.card,marginBottom:"8px",borderLeft:`3px solid ${T.accent}`}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}}>
+            <div style={{fontSize:"13px",fontWeight:"700",color:T.text}}>{g.icon} {g.group}</div>
+            <button onClick={()=>delGroup(g.group)} style={{background:"transparent",border:"none",cursor:"pointer",fontSize:"12px",color:"#ef4444"}}>🗑️ grupo</button>
+          </div>
+          {g.items.map(item=>(
+            <div key={item} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"5px 0 5px 10px",borderBottom:`1px solid ${T.border}33`}}>
+              {editItem?.g===g.group&&editItem?.item===item ? (
+                <div style={{display:"flex",gap:"6px",flex:1,marginRight:"8px"}}>
+                  <input style={{...inp,flex:1,padding:"5px 10px",marginBottom:0}} value={editVal} onChange={e=>setEditVal(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveEdit()} autoFocus/>
+                  <button onClick={saveEdit} style={{background:T.accent,color:"#000",border:"none",borderRadius:"6px",padding:"5px 10px",cursor:"pointer",fontSize:"12px",fontWeight:"700"}}>✓</button>
+                </div>
+              ) : (
+                <span style={{fontSize:"12px",color:T.muted}}>• {item}</span>
+              )}
+              {!(editItem?.g===g.group&&editItem?.item===item)&&(
+                <div style={{display:"flex",gap:"4px"}}>
+                  <button onClick={()=>{setEditItem({g:g.group,item});setEditVal(item);}} style={{background:"transparent",border:"none",cursor:"pointer",fontSize:"11px",color:T.muted}}>✏️</button>
+                  <button onClick={()=>delItem(g.group,item)} style={{background:"transparent",border:"none",cursor:"pointer",fontSize:"11px",color:"#ef4444"}}>🗑️</button>
+                </div>
+              )}
+            </div>
+          ))}
+          <div style={{display:"flex",gap:"6px",marginTop:"8px"}}>
+            <input style={{...inp,flex:1,padding:"7px 10px",fontSize:"12px",marginBottom:0}}
+              placeholder={`+ Subcategoría en ${g.group}`}
+              value={newItem.group===g.group?newItem.value:""}
+              onChange={e=>setNewItem({group:g.group,value:e.target.value})}
+              onKeyDown={e=>e.key==="Enter"&&addItem(g.group)}/>
+            <button onClick={()=>addItem(g.group)} style={{background:`${T.accent}33`,color:T.accent,border:`1px solid ${T.accent}55`,borderRadius:"7px",padding:"7px 12px",cursor:"pointer",fontSize:"12px",fontWeight:"700"}}>+</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── APP ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const [view,         setView]         = useState("dashboard");
@@ -340,6 +422,8 @@ export default function App() {
   const [showForm,     setShowForm]     = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [themeName,    setThemeName]    = useState("oscuro");
+  const T = THEMES[themeName] || THEMES.oscuro;
   const [editingTx,    setEditingTx]    = useState(null);
   const [showDebtForm, setShowDebtForm] = useState(false);
   const [editingDebt,  setEditingDebt]  = useState(null);
@@ -373,6 +457,7 @@ export default function App() {
         if(d.debts?.length)setDebts(d.debts);
         if(d.accounts?.length)setAccounts(d.accounts);
         if(d.savingsGoal)setSavingsGoal(d.savingsGoal);
+        if(d.themeName)setThemeName(d.themeName);
         // Migrate: if cats are flat arrays (old format), use defaults
         if(d.expCats?.length) {
           if(typeof d.expCats[0]==="string") {
@@ -395,10 +480,10 @@ export default function App() {
 
   useEffect(()=>{
     if(!ready)return;
-    const data = {transactions,budget,debts,accounts,expCats,incCats,savingsGoal};
+    const data = {transactions,budget,debts,accounts,expCats,incCats,savingsGoal,themeName};
     fbSave(data);
     (async()=>{try{await window.storage.set("finanzas_v7",JSON.stringify(data));}catch{}})();
-  },[transactions,budget,debts,accounts,expCats,incCats,savingsGoal,ready]);
+  },[transactions,budget,debts,accounts,expCats,incCats,savingsGoal,themeName,ready]);
 
   // ── DERIVED ─────────────────────────────────────────────────────────────────
   const filtered   = filterUser==="Todos"?transactions:transactions.filter(t=>t.user===filterUser);
@@ -549,22 +634,22 @@ export default function App() {
 
   // ── STYLES ───────────────────────────────────────────────────────────────────
   const s={
-    root:    {fontFamily:"'Sora',sans-serif",background:"#060d1c",minHeight:"100vh",color:"#e2e8f0"},
-    header:  {background:"linear-gradient(135deg,#0a1628,#0d1f3c)",borderBottom:"1px solid #1e3a5f55",padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100},
-    nav:     {display:"flex",gap:"4px",padding:"10px 14px",background:"#08111f",borderBottom:"1px solid #1e3a5f44",overflowX:"auto"},
-    navBtn:  a=>({padding:"7px 13px",borderRadius:"18px",border:"none",cursor:"pointer",fontSize:"12px",fontWeight:a?"600":"400",fontFamily:"'Sora',sans-serif",background:a?"#10b981":"transparent",color:a?"#000":"#64748b",whiteSpace:"nowrap"}),
+    root:    {fontFamily:"'Sora',sans-serif",background:T.bg,minHeight:"100vh",color:T.text},
+    header:  {background:`linear-gradient(135deg,${T.header},${T.card})`,borderBottom:`1px solid ${T.border}88`,padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100},
+    nav:     {display:"flex",gap:"4px",padding:"10px 14px",background:T.nav,borderBottom:`1px solid ${T.border}66`,overflowX:"auto"},
+    navBtn:  a=>({padding:"7px 13px",borderRadius:"18px",border:"none",cursor:"pointer",fontSize:"12px",fontWeight:a?"600":"400",fontFamily:"'Sora',sans-serif",background:a?T.accent:"transparent",color:a?"#000":T.muted,whiteSpace:"nowrap"}),
     page:    {padding:"14px",maxWidth:"680px",margin:"0 auto"},
-    card:    {background:"#0b1930",border:"1px solid #1a3454",borderRadius:"14px",padding:"14px",marginBottom:"10px"},
-    label:   {fontSize:"10px",color:"#476282",textTransform:"uppercase",letterSpacing:"1.2px",marginBottom:"3px",fontWeight:"600"},
+    card:    {background:T.card,border:`1px solid ${T.border}`,borderRadius:"14px",padding:"14px",marginBottom:"10px"},
+    label:   {fontSize:"10px",color:T.muted,textTransform:"uppercase",letterSpacing:"1.2px",marginBottom:"3px",fontWeight:"600"},
     bigNum:  {fontSize:"22px",fontWeight:"800",letterSpacing:"-1px"},
-    secTitle:{fontSize:"11px",fontWeight:"700",color:"#476282",textTransform:"uppercase",letterSpacing:"1px",marginBottom:"10px"},
-    input:   {width:"100%",background:"#08111f",border:"1px solid #1e3a5f",borderRadius:"9px",padding:"10px 12px",color:"#e2e8f0",fontSize:"13px",fontFamily:"'Sora',sans-serif",outline:"none",boxSizing:"border-box"},
-    select:  {width:"100%",background:"#08111f",border:"1px solid #1e3a5f",borderRadius:"9px",padding:"10px 12px",color:"#e2e8f0",fontSize:"13px",fontFamily:"'Sora',sans-serif",outline:"none",boxSizing:"border-box"},
-    btn:     (bg="#10b981",tc="#000")=>({background:bg,color:tc,border:"none",borderRadius:"9px",padding:"9px 18px",fontSize:"13px",fontWeight:"600",cursor:"pointer",fontFamily:"'Sora',sans-serif"}),
+    secTitle:{fontSize:"11px",fontWeight:"700",color:T.muted,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"10px"},
+    input:   {width:"100%",background:T.input,border:`1px solid ${T.border}`,borderRadius:"9px",padding:"10px 12px",color:T.text,fontSize:"13px",fontFamily:"'Sora',sans-serif",outline:"none",boxSizing:"border-box"},
+    select:  {width:"100%",background:T.input,border:`1px solid ${T.border}`,borderRadius:"9px",padding:"10px 12px",color:T.text,fontSize:"13px",fontFamily:"'Sora',sans-serif",outline:"none",boxSizing:"border-box"},
+    btn:     (bg,tc="#000")=>({background:bg||T.accent,color:tc,border:"none",borderRadius:"9px",padding:"9px 18px",fontSize:"13px",fontWeight:"600",cursor:"pointer",fontFamily:"'Sora',sans-serif"}),
     fRow:    {display:"flex",gap:"6px",marginBottom:"12px",flexWrap:"wrap"},
-    fBtn:    a=>({padding:"5px 13px",borderRadius:"18px",border:`1px solid ${a?"#10b981":"#1e3a5f"}`,cursor:"pointer",fontSize:"11px",fontWeight:"500",fontFamily:"'Sora',sans-serif",background:a?"#10b981":"transparent",color:a?"#000":"#64748b"}),
-    txRow:   {display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid #1a345422"},
-    bubble:  u=>({maxWidth:"84%",padding:"10px 14px",borderRadius:u?"16px 16px 3px 16px":"16px 16px 16px 3px",background:u?"#10b981":"#0b1930",color:u?"#000":"#e2e8f0",fontSize:"13px",lineHeight:"1.55",marginBottom:"6px",alignSelf:u?"flex-end":"flex-start",border:u?"none":"1px solid #1a3454"}),
+    fBtn:    a=>({padding:"5px 13px",borderRadius:"18px",border:`1px solid ${a?T.accent:T.border}`,cursor:"pointer",fontSize:"11px",fontWeight:"500",fontFamily:"'Sora',sans-serif",background:a?T.accent:"transparent",color:a?"#000":T.muted}),
+    txRow:   {display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",borderBottom:`1px solid ${T.border}44`},
+    bubble:  u=>({maxWidth:"84%",padding:"10px 14px",borderRadius:u?"16px 16px 3px 16px":"16px 16px 16px 3px",background:u?T.accent:T.bubble,color:u?"#000":T.text,fontSize:"13px",lineHeight:"1.55",marginBottom:"6px",alignSelf:u?"flex-end":"flex-start",border:u?"none":`1px solid ${T.border}`}),
   };
 
   // ── VIEWS ────────────────────────────────────────────────────────────────────
@@ -1361,6 +1446,39 @@ export default function App() {
     );
   };
 
+  const Configuracion=()=>(
+    <div>
+      {/* TEMAS */}
+      <div style={s.card}>
+        <div style={{fontSize:"14px",fontWeight:"700",color:T.accent,marginBottom:"14px"}}>🎨 Tema de la app</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px"}}>
+          {Object.entries(THEMES).map(([key,t])=>(
+            <div key={key} onClick={()=>setThemeName(key)}
+              style={{padding:"12px",borderRadius:"12px",border:`2px solid ${themeName===key?t.accent:T.border}`,cursor:"pointer",background:t.bg,transition:"all 0.2s"}}>
+              <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"6px"}}>
+                <div style={{width:"24px",height:"24px",borderRadius:"50%",background:t.accent}}/>
+                <div style={{fontSize:"12px",fontWeight:"700",color:t.text}}>{t.name}</div>
+              </div>
+              <div style={{display:"flex",gap:"4px"}}>
+                {[t.bg,t.card,t.accent,t.muted].map((c,i)=>(
+                  <div key={i} style={{flex:1,height:"6px",borderRadius:"3px",background:c}}/>
+                ))}
+              </div>
+              {themeName===key&&<div style={{fontSize:"10px",color:t.accent,fontWeight:"700",marginTop:"5px"}}>✓ Activo</div>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* CATEGORÍAS */}
+      <div style={s.card}>
+        <div style={{fontSize:"14px",fontWeight:"700",color:T.accent,marginBottom:"4px"}}>🏷️ Categorías</div>
+        <div style={{fontSize:"11px",color:T.muted,marginBottom:"14px"}}>Agrupa y organiza tus categorías de gastos e ingresos.</div>
+        <CatManager expCats={expCats} incCats={incCats} setExpCats={setExpCats} setIncCats={setIncCats} s={s} T={T}/>
+      </div>
+    </div>
+  );
+
   const nav=[
     {id:"dashboard",   label:"📊 Panel"},
     {id:"accounts",    label:"🏦 Cuentas"},
@@ -1368,7 +1486,7 @@ export default function App() {
     {id:"budget",      label:"🎯 Presupuesto"},
     {id:"debts",       label:"🔴 Deudas"},
     {id:"reportes",    label:"📈 Reportes"},
-    {id:"categorias",  label:"🏷️ Categorías"},
+    {id:"config",      label:"⚙️ Config"},
     {id:"chat",        label:"🤖 Chat IA"},
   ];
 
@@ -1397,7 +1515,7 @@ export default function App() {
         {view==="budget"       && <Presupuesto/>}
         {view==="debts"        && <Deudas/>}
         {view==="reportes"     && <Reportes/>}
-        {view==="categorias"   && <Categorias/>}
+        {view==="config"       && <Configuracion/>}
         {view==="chat"         && <ChatIA/>}
       </div>
     </div>
