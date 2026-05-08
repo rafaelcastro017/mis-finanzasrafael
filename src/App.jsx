@@ -153,6 +153,68 @@ function CalendarPicker({value, onChange}) {
   );
 }
 
+// ── TRANSFER FORM ─────────────────────────────────────────────────────────────
+function TransferForm({accounts, onSave, onCancel}) {
+  const [tx, setTx] = useState({
+    from: accounts[0]?.id||"", to: accounts[1]?.id||"",
+    amount:0, description:"", date:new Date().toISOString().split("T")[0]
+  });
+  const inp = {width:"100%",background:"#08111f",border:"1px solid #1e3a5f",borderRadius:"9px",padding:"12px",color:"#e2e8f0",fontSize:"16px",fontFamily:"'Sora',sans-serif",outline:"none",boxSizing:"border-box",marginBottom:"8px"};
+  const btn = (bg="#10b981",tc="#000")=>({background:bg,color:tc,border:"none",borderRadius:"9px",padding:"10px 20px",fontSize:"14px",fontWeight:"600",cursor:"pointer",fontFamily:"'Sora',sans-serif"});
+
+  const fromAcc = accounts.find(a=>a.id===tx.from);
+  const toAcc   = accounts.find(a=>a.id===tx.to);
+
+  return (
+    <div style={{background:"#0b1930",border:"1px solid #3b82f644",borderRadius:"14px",padding:"14px",marginBottom:"10px"}}>
+      <div style={{fontSize:"13px",fontWeight:"700",color:"#3b82f6",marginBottom:"12px"}}>🔄 Transferencia entre cuentas</div>
+
+      {/* From → To visual */}
+      <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"12px",background:"#08111f",borderRadius:"10px",padding:"10px"}}>
+        <div style={{flex:1,textAlign:"center"}}>
+          <div style={{fontSize:"20px"}}>{fromAcc?.icon||"🏦"}</div>
+          <div style={{fontSize:"12px",fontWeight:"700",color:"#e2e8f0"}}>{fromAcc?.name||"—"}</div>
+          <div style={{fontSize:"10px",color:"#ef4444"}}>Sale</div>
+        </div>
+        <div style={{fontSize:"20px",color:"#3b82f6"}}>→</div>
+        <div style={{flex:1,textAlign:"center"}}>
+          <div style={{fontSize:"20px"}}>{toAcc?.icon||"🏦"}</div>
+          <div style={{fontSize:"12px",fontWeight:"700",color:"#e2e8f0"}}>{toAcc?.name||"—"}</div>
+          <div style={{fontSize:"10px",color:"#10b981"}}>Entra</div>
+        </div>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"8px"}}>
+        <div>
+          <div style={{fontSize:"10px",color:"#476282",marginBottom:"4px",fontWeight:"600"}}>CUENTA ORIGEN</div>
+          <select style={{...inp,marginBottom:0}} value={tx.from} onChange={e=>setTx(p=>({...p,from:e.target.value}))}>
+            {accounts.map(a=><option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <div style={{fontSize:"10px",color:"#476282",marginBottom:"4px",fontWeight:"600"}}>CUENTA DESTINO</div>
+          <select style={{...inp,marginBottom:0}} value={tx.to} onChange={e=>setTx(p=>({...p,to:e.target.value}))}>
+            {accounts.filter(a=>a.id!==tx.from).map(a=><option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <NumInput style={inp} placeholder="Monto a transferir" value={tx.amount} onChange={v=>setTx(p=>({...p,amount:v}))}/>
+      <input style={inp} type="text" placeholder="Descripción (opcional)" value={tx.description} onChange={e=>setTx(p=>({...p,description:e.target.value}))}/>
+      <div style={{marginBottom:"8px"}}>
+        <CalendarPicker value={tx.date} onChange={d=>setTx(p=>({...p,date:d}))}/>
+      </div>
+
+      {tx.from===tx.to&&<div style={{fontSize:"11px",color:"#ef4444",marginBottom:"8px"}}>⚠️ Las cuentas origen y destino deben ser diferentes</div>}
+
+      <div style={{display:"flex",gap:"8px"}}>
+        <button style={btn()} onClick={()=>onSave(tx.from,tx.to,tx.amount,tx.description,tx.date)} disabled={tx.from===tx.to||!tx.amount}>Transferir</button>
+        <button style={btn("#1a3454","#94a3b8")} onClick={onCancel}>Cancelar</button>
+      </div>
+    </div>
+  );
+}
+
 // ── TRANSACTION FORM ─────────────────────────────────────────────────────────
 function TransactionForm({accounts, expGroups, incGroups, onSave, onCancel}) {
   const expFlat = expGroups.flatMap(g=>g.items);
@@ -271,6 +333,7 @@ export default function App() {
   const [incCats,      setIncCats]      = useState(DEFAULT_INC_GROUPS);
   const [ready,        setReady]        = useState(false);
   const [showForm,     setShowForm]     = useState(false);
+  const [showTransfer, setShowTransfer] = useState(false);
   const [editingTx,    setEditingTx]    = useState(null);
   const [showDebtForm, setShowDebtForm] = useState(false);
   const [editingDebt,  setEditingDebt]  = useState(null);
@@ -376,6 +439,19 @@ export default function App() {
     setShowDebtForm(false);
   };
 
+  const processTransfer = (fromAcc, toAcc, amount, description, date) => {
+    if (!fromAcc || !toAcc || !amount || fromAcc===toAcc) return;
+    const from = accounts.find(a=>a.id===fromAcc);
+    const to   = accounts.find(a=>a.id===toAcc);
+    const desc = description || `Transferencia ${from?.name} → ${to?.name}`;
+    const ts = Date.now();
+    setTransactions(p=>[
+      {id:ts,   user:"Rafael", account:fromAcc, type:"expense", category:"Transferencia", description:desc, amount, date},
+      {id:ts+1, user:"Rafael", account:toAcc,   type:"income",  category:"Transferencia", description:desc, amount, date},
+      ...p
+    ]);
+  };
+
   const openPayDialog = id => {
     const d = debts.find(x=>x.id===id);
     if (!d) return;
@@ -437,13 +513,14 @@ export default function App() {
   const importCSV=e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const lines=ev.target.result.split("\n").slice(1).filter(l=>l.trim());const imported=lines.map((line,i)=>{const[date,description,amount,category,type,user,account]=line.split(",").map(s=>s?.trim().replace(/"/g,""));return{id:Date.now()+i,user:user||"Rafael",account:account||"efectivo",type:type||"expense",category:category||"Otros",amount:Math.abs(parseFloat(amount)||0),description:description||"",date:date?.split(" ")[0]||today()};}).filter(t=>t.amount>0);setTransactions(p=>[...imported,...p]);};reader.readAsText(file);e.target.value="";};
   const exportCSV=()=>{const header="fecha,descripcion,monto,categoria,tipo,usuario,cuenta";const rows=transactions.map(t=>`${t.date},"${t.description}",${t.amount},${t.category},${t.type},${t.user},${t.account||""}`);const csv=[header,...rows].join("\n");const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`MisFinanzas_${thisMonth()}.csv`;a.click();URL.revokeObjectURL(url);};
 
-  const sendChat=async()=>{
-    if(!chatInput.trim()||chatLoading)return;
-    const msg=chatInput.trim();setChatInput("");
+  const sendChat=async(msgParam)=>{
+    const msg=(msgParam||chatInput).trim();
+    if(!msg||chatLoading)return;
+    setChatInput("");
     setChatMsgs(p=>[...p,{role:"user",content:msg}]);setChatLoading(true);
     const ctx=`Cuentas: ${JSON.stringify(accBalances.map(a=>({cuenta:a.name,saldo:fmt(a.balance)})))} | Total disponible: ${fmt(totalBalance)} | Ingresos mes: ${fmt(income)} | Gastos mes: ${fmt(expense)} | Deuda total: ${fmt(totalDebt)} | Cuotas/mes: ${fmt(totalMonthly)} | Deudas: ${JSON.stringify(debts.map(d=>({n:d.name,s:fmt(d.remaining),c:fmt(d.monthly)})))} | Top gastos: ${JSON.stringify(catData.slice(0,6).map(d=>({cat:d.name,monto:fmt(d.value)})))}`;
     try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:`Eres asesor financiero personal de Rafael, colombiano. Datos en tiempo real:\n${ctx}\nResponde en español, conciso y práctico. Montos en COP.`,messages:[...chatMsgs.slice(1).map(m=>({role:m.role,content:m.content})),{role:"user",content:msg}]})});
+      const res=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:`Eres asesor financiero personal de Rafael, colombiano. Datos en tiempo real:\n${ctx}\nResponde en español, conciso y práctico. Montos en COP.`,messages:[...chatMsgs.slice(1).map(m=>({role:m.role,content:m.content})),{role:"user",content:msg}]})});
       const data=await res.json();
       setChatMsgs(p=>[...p,{role:"assistant",content:data.content?.[0]?.text||"Error."}]);
     }catch{setChatMsgs(p=>[...p,{role:"assistant",content:"Error de conexión."}]);}
@@ -662,8 +739,19 @@ export default function App() {
         <div style={s.fRow}>
           {["Todos","Rafael","Pareja"].map(u=><button key={u} style={s.fBtn(filterUser===u)} onClick={()=>setFilterUser(u)}>{u}</button>)}
         </div>
-        <button style={s.btn()} onClick={()=>setShowForm(f=>!f)}>+ Nuevo</button>
+        <div style={{display:"flex",gap:"6px"}}>
+          <button style={s.btn("#1a3454","#3b82f6")} onClick={()=>{setShowTransfer(f=>!f);setShowForm(false);}}>🔄</button>
+          <button style={s.btn()} onClick={()=>{setShowForm(f=>!f);setShowTransfer(false);}}>+ Nuevo</button>
+        </div>
       </div>
+
+      {showTransfer && (
+        <TransferForm
+          accounts={accounts}
+          onSave={(from,to,amount,desc,date)=>{ processTransfer(from,to,amount,desc,date); setShowTransfer(false); }}
+          onCancel={()=>setShowTransfer(false)}
+        />
+      )}
 
       {showForm && (
         <TransactionForm
@@ -726,7 +814,7 @@ export default function App() {
           return(
             <div key={tx.id} style={s.txRow}>
               <div style={{display:"flex",alignItems:"center",gap:"10px",flex:1,minWidth:0}}>
-                <div style={{width:"32px",height:"32px",borderRadius:"8px",background:tx.type==="income"?"#10b98118":"#ef444418",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"13px",flexShrink:0}}>{tx.type==="income"?"💰":"💸"}</div>
+                <div style={{width:"32px",height:"32px",borderRadius:"8px",background:tx.category==="Transferencia"?"#3b82f622":tx.type==="income"?"#10b98118":"#ef444418",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"13px",flexShrink:0}}>{tx.category==="Transferencia"?"🔄":tx.type==="income"?"💰":"💸"}</div>
                 <div style={{minWidth:0}}>
                   <div style={{fontSize:"13px",fontWeight:"500",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tx.description}</div>
                   <div style={{fontSize:"10px",color:"#476282"}}>{tx.category} · {acc?.icon} {acc?.name||"—"} · {tx.date}{tx.shared?" 🔀":""}</div>
@@ -1008,6 +1096,7 @@ export default function App() {
 
   const ChatIA=()=>{
     const endRef=useRef(null);
+    const inputRef=useRef(null);
     useEffect(()=>endRef.current?.scrollIntoView({behavior:"smooth"}),[chatMsgs,chatLoading]);
     return(
       <div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 190px)",minHeight:"300px"}}>
@@ -1025,8 +1114,22 @@ export default function App() {
           <div ref={endRef}/>
         </div>
         <div style={{display:"flex",gap:"8px",padding:"10px 0 4px",borderTop:"1px solid #1a3454"}}>
-          <input style={{...s.input,flex:1}} placeholder="¿Cuánto tengo en Nequi? ¿Cuándo pago Addi?" value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChat()}/>
-          <button style={{...s.btn(),minWidth:"46px",padding:"9px 14px"}} onClick={sendChat} disabled={chatLoading}>➤</button>
+          <input
+            ref={inputRef}
+            style={{...s.input,flex:1,fontSize:"16px"}}
+            placeholder="¿Cuánto tengo en Nequi? ¿Cuándo pago Addi?"
+            defaultValue=""
+            onKeyDown={e=>{
+              if(e.key==="Enter"){
+                const v=e.target.value.trim();
+                if(v){ setChatInput(v); e.target.value=""; sendChat(v); }
+              }
+            }}
+          />
+          <button style={{...s.btn(),minWidth:"46px",padding:"9px 14px"}} onClick={()=>{
+            const v=inputRef.current?.value?.trim();
+            if(v){ setChatInput(v); inputRef.current.value=""; sendChat(v); }
+          }} disabled={chatLoading}>➤</button>
         </div>
       </div>
     );
