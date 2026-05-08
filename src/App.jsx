@@ -401,6 +401,22 @@ function BudgetRow({cat, spent, limit, pct, onLimitChange, s, T}) {
   );
 }
 
+// ── BUDGET VIEW — standalone para evitar pérdida de foco ─────────────────────
+function BudgetView({budgetRows, setBudget, accent, thisMonth, s, T}) {
+  return (
+    <div>
+      <div style={{...s.card,background:T.card,border:`1px solid ${T.accent}33`}}>
+        <div style={{fontSize:"13px",color:T.accent,fontWeight:"600"}}>🎯 Presupuesto — {thisMonth()}</div>
+      </div>
+      {budgetRows.map(({cat,spent,limit,pct})=>(
+        <BudgetRow key={cat} cat={cat} spent={spent} limit={limit} pct={pct}
+          onLimitChange={v=>setBudget(p=>({...p,[cat]:v}))}
+          s={s} T={T}/>
+      ))}
+    </div>
+  );
+}
+
 // ── APP ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const [view,         setView]         = useState("dashboard");
@@ -1014,19 +1030,6 @@ export default function App() {
     </div>
   );
 
-  const Presupuesto=()=>(
-    <div>
-      <div style={{...s.card,background:"#071a12",border:`1px solid ${T.accent}33`}}>
-        <div style={{fontSize:"13px",color:T.accent,fontWeight:"600"}}>🎯 Presupuesto — {thisMonth()}</div>
-      </div>
-      {budgetRows.map(({cat,spent,limit,pct})=>(
-        <BudgetRow key={cat} cat={cat} spent={spent} limit={limit} pct={pct}
-          onLimitChange={v=>setBudget(p=>({...p,[cat]:v}))}
-          s={s} T={T}/>
-      ))}
-    </div>
-  );
-
   const DEBT_TYPE_LABELS = {
     "solo_interes":    {label:"Solo interés",    color:"#f59e0b", desc:"Capital no baja"},
     "capital_interes": {label:"Capital + Interés",color:"#3b82f6", desc:"Cuota cubre ambos"},
@@ -1607,7 +1610,7 @@ export default function App() {
         {view==="dashboard"    && <Dashboard/>}
         {view==="accounts"     && <Cuentas/>}
         {view==="transactions" && <Transacciones/>}
-        {view==="budget"       && <Presupuesto/>}
+        {view==="budget"       && <BudgetView budgetRows={budgetRows} setBudget={setBudget} s={s} T={T} thisMonth={thisMonth}/>}
         {view==="debts"        && <Deudas/>}
         {view==="reportes"     && <Reportes/>}
         {view==="config"       && <Configuracion/>}
