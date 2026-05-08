@@ -456,8 +456,13 @@ export default function App() {
       if (d) {
         if(d.transactions?.length)setTransactions(d.transactions);
         if(d.budget)setBudget(d.budget);
-        if(d.debts?.length)setDebts(d.debts);
-        if(d.loans?.length)setLoans(d.loans);
+        if(d.debts?.length)setDebts(d.debts.map(debt=>({
+          ...debt,
+          type: debt.type || "capital_interes",
+          rate: debt.rate || 0,
+          dueDay: debt.dueDay || null,
+        })));
+        if(d.loans?.length)setLoans(d.loans.map(l=>({...l, color:l.color||"#3b82f6", remaining:l.remaining??l.amount})));
         if(d.accounts?.length)setAccounts(d.accounts);
         if(d.savingsGoal)setSavingsGoal(d.savingsGoal);
         if(d.themeName)setThemeName(d.themeName);
@@ -1307,7 +1312,7 @@ export default function App() {
         const interestAmt = debt.rate>0 ? Math.round(debt.remaining*debt.rate/100) : 0;
         const capitalAmt = debt.type==="solo_interes" ? 0 : debt.type==="solo_capital" ? debt.monthly : Math.max(0, debt.monthly - interestAmt);
         const months = debt.type==="solo_interes" ? "∞" : capitalAmt>0 ? Math.ceil(debt.remaining/capitalAmt) : "∞";
-        const typeInfo = DEBT_TYPE_LABELS[debt.type||"capital_interes"];
+        const typeInfo = DEBT_TYPE_LABELS[debt.type||"capital_interes"] || DEBT_TYPE_LABELS["capital_interes"];
         return(
           <div key={debt.id} style={{...s.card,borderLeft:`3px solid ${debt.color}`}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"6px"}}>
@@ -1652,7 +1657,7 @@ export default function App() {
         </div>
       )}
       <div style={s.header}>
-        <div style={{fontSize:"17px",fontWeight:"800",color:"#10b981",letterSpacing:"-0.5px"}}>💚 DuoFinance</div>
+        <div style={{fontSize:"17px",fontWeight:"800",color:"#10b981",letterSpacing:"-0.5px"}}>💚 MisFinanzas</div>
         <div style={{fontSize:"11px",background:"#10b98122",color:"#10b981",padding:"3px 10px",borderRadius:"20px",border:"1px solid #10b98144"}}>Rafael &amp; Pareja</div>
       </div>
       <div style={s.nav}>
