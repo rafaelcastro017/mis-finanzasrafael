@@ -427,6 +427,7 @@ export default function App() {
   const [editingTx,    setEditingTx]    = useState(null);
   const [loans, setLoans] = useState([]);
   const [showLoanForm, setShowLoanForm] = useState(false);
+  const [showDebtForm, setShowDebtForm] = useState(false);
   const [newLoan, setNewLoan] = useState({name:"",account:"finandina",amount:"",remaining:"",description:"",date:today(),dueDate:"",color:"#3b82f6"});
   const [editingDebt,  setEditingDebt]  = useState(null);
   const [payingDebt,   setPayingDebt]   = useState(null);
@@ -1027,24 +1028,17 @@ export default function App() {
 
   const Deudas=()=>{
     const inp = {...s.input, marginBottom:"8px"};
-    const colors = ["#ef4444","#f97316","#f59e0b","#10b981","#3b82f6","#8b5cf6","#ec4899"];
-
+    const COLORS = ["#ef4444","#f97316","#f59e0b","#10b981","#3b82f6","#8b5cf6","#ec4899"];
     return(
-    <div>
-      {/* Toggle Deudas / Préstamos */}
-      <div style={{display:"flex",gap:"8px",marginBottom:"12px"}}>
-        <button onClick={()=>setDebtTab("deudas")} style={{flex:1,padding:"10px",borderRadius:"10px",border:`1px solid ${debtTab==="deudas"?"#ef4444":T.border}`,background:debtTab==="deudas"?"#ef444422":"transparent",color:debtTab==="deudas"?"#ef4444":T.muted,fontSize:"13px",fontWeight:"700",cursor:"pointer",fontFamily:"'Sora',sans-serif"}}>
-          🔴 Lo que debo
-        </button>
-        <button onClick={()=>setDebtTab("prestamos")} style={{flex:1,padding:"10px",borderRadius:"10px",border:`1px solid ${debtTab==="prestamos"?"#10b981":T.border}`,background:debtTab==="prestamos"?"#10b98122":"transparent",color:debtTab==="prestamos"?"#10b981":T.muted,fontSize:"13px",fontWeight:"700",cursor:"pointer",fontFamily:"'Sora',sans-serif"}}>
-          💚 Lo que me deben
-        </button>
-      </div>
+      <div>
+        {/* ── Tab toggle ── */}
+        <div style={{display:"flex",gap:"8px",marginBottom:"12px"}}>
+          <button onClick={()=>setDebtTab("deudas")} style={{flex:1,padding:"10px",borderRadius:"10px",border:`1px solid ${debtTab==="deudas"?"#ef4444":T.border}`,background:debtTab==="deudas"?"#ef444422":"transparent",color:debtTab==="deudas"?"#ef4444":T.muted,fontSize:"13px",fontWeight:"700",cursor:"pointer",fontFamily:"'Sora',sans-serif"}}>🔴 Lo que debo</button>
+          <button onClick={()=>setDebtTab("prestamos")} style={{flex:1,padding:"10px",borderRadius:"10px",border:`1px solid ${debtTab==="prestamos"?"#10b981":T.border}`,background:debtTab==="prestamos"?"#10b98122":"transparent",color:debtTab==="prestamos"?"#10b981":T.muted,fontSize:"13px",fontWeight:"700",cursor:"pointer",fontFamily:"'Sora',sans-serif"}}>💚 Lo que me deben</button>
+        </div>
 
-      {/* ── PRÉSTAMOS TAB ──────────────────────────────────────── */}
-      {debtTab==="prestamos"&&(
-        <div>
-          {/* Summary */}
+        {/* ── PRÉSTAMOS ── */}
+        {debtTab==="prestamos"&&<div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px",marginBottom:"10px"}}>
             <div style={{...s.card,background:"#071a12",border:"1px solid #10b98133"}}>
               <div style={s.label}>Prestado</div>
@@ -1054,72 +1048,55 @@ export default function App() {
               <div style={s.label}>Pendiente</div>
               <div style={{fontSize:"14px",fontWeight:"800",color:"#ef4444"}}>{fmt(totalPending)}</div>
             </div>
-            <div style={{...s.card,background:"#071a12",border:"1px solid #3b82f633"}}>
+            <div style={{...s.card,background:"#071a30",border:"1px solid #3b82f633"}}>
               <div style={s.label}>Recuperado</div>
               <div style={{fontSize:"14px",fontWeight:"800",color:"#3b82f6"}}>{fmt(totalRecovered)}</div>
             </div>
           </div>
-
           <div style={{display:"flex",justifyContent:"flex-end",marginBottom:"10px"}}>
             <button style={s.btn()} onClick={()=>setShowLoanForm(f=>!f)}>+ Nuevo préstamo</button>
           </div>
-
-          {showLoanForm&&(
-            <div style={{...s.card,marginBottom:"10px",border:"1px solid #10b98133"}}>
-              <div style={{fontSize:"13px",fontWeight:"700",color:"#10b981",marginBottom:"10px"}}>💚 Registrar préstamo</div>
-              <input style={{...s.input,marginBottom:"8px"}} placeholder="¿A quién le prestas?" value={newLoan.name} onChange={e=>setNewLoan(p=>({...p,name:e.target.value}))}/>
-              <select style={{...s.select,marginBottom:"8px"}} value={newLoan.account} onChange={e=>setNewLoan(p=>({...p,account:e.target.value}))}>
-                {accounts.map(a=><option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
-              </select>
-              <NumInput style={{...s.input,marginBottom:"8px"}} placeholder="Monto prestado" value={newLoan.amount} onChange={v=>setNewLoan(p=>({...p,amount:v}))}/>
-              <input style={{...s.input,marginBottom:"8px"}} placeholder="Descripción (opcional)" value={newLoan.description} onChange={e=>setNewLoan(p=>({...p,description:e.target.value}))}/>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"8px"}}>
-                <div>
-                  <div style={{fontSize:"10px",color:T.muted,marginBottom:"4px"}}>FECHA PRÉSTAMO</div>
-                  <CalendarPicker value={newLoan.date} onChange={d=>setNewLoan(p=>({...p,date:d}))}/>
-                </div>
-                <div>
-                  <div style={{fontSize:"10px",color:T.muted,marginBottom:"4px"}}>FECHA ESPERADA PAGO</div>
-                  <CalendarPicker value={newLoan.dueDate} onChange={d=>setNewLoan(p=>({...p,dueDate:d}))}/>
-                </div>
+          {showLoanForm&&<div style={{...s.card,marginBottom:"10px",border:"1px solid #10b98133"}}>
+            <div style={{fontSize:"13px",fontWeight:"700",color:"#10b981",marginBottom:"10px"}}>💚 Registrar préstamo</div>
+            <input style={{...s.input,marginBottom:"8px"}} placeholder="¿A quién le prestas?" value={newLoan.name} onChange={e=>setNewLoan(p=>({...p,name:e.target.value}))}/>
+            <select style={{...s.select,marginBottom:"8px"}} value={newLoan.account} onChange={e=>setNewLoan(p=>({...p,account:e.target.value}))}>
+              {accounts.map(a=><option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
+            </select>
+            <NumInput style={{...s.input,marginBottom:"8px"}} placeholder="Monto prestado" value={newLoan.amount} onChange={v=>setNewLoan(p=>({...p,amount:v}))}/>
+            <input style={{...s.input,marginBottom:"8px"}} placeholder="Descripción (opcional)" value={newLoan.description} onChange={e=>setNewLoan(p=>({...p,description:e.target.value}))}/>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"8px"}}>
+              <div>
+                <div style={{fontSize:"10px",color:T.muted,marginBottom:"4px"}}>FECHA PRÉSTAMO</div>
+                <CalendarPicker value={newLoan.date} onChange={d=>setNewLoan(p=>({...p,date:d}))}/>
               </div>
-              <div style={{display:"flex",gap:"6px",marginBottom:"10px"}}>
-                {["#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6","#ec4899","#06b6d4"].map(c=>(
-                  <div key={c} onClick={()=>setNewLoan(p=>({...p,color:c}))} style={{width:"22px",height:"22px",borderRadius:"50%",background:c,cursor:"pointer",border:newLoan.color===c?"3px solid #fff":"3px solid transparent"}}/>
-                ))}
-              </div>
-              <div style={{display:"flex",gap:"8px"}}>
-                <button style={s.btn()} onClick={addLoan}>Guardar</button>
-                <button style={s.btn(T.border,T.muted)} onClick={()=>setShowLoanForm(false)}>Cancelar</button>
+              <div>
+                <div style={{fontSize:"10px",color:T.muted,marginBottom:"4px"}}>FECHA PAGO ESPERADA</div>
+                <CalendarPicker value={newLoan.dueDate} onChange={d=>setNewLoan(p=>({...p,dueDate:d}))}/>
               </div>
             </div>
-          )}
-
-          {loans.length===0&&(
-            <div style={{...s.card,textAlign:"center",padding:"32px"}}>
-              <div style={{fontSize:"32px",marginBottom:"8px"}}>💚</div>
-              <div style={{fontSize:"14px",color:"#10b981",fontWeight:"600"}}>Sin préstamos registrados</div>
-              <div style={{fontSize:"12px",color:T.muted,marginTop:"4px"}}>Registra cuando prestes dinero a alguien</div>
+            <div style={{display:"flex",gap:"6px",marginBottom:"10px"}}>
+              {COLORS.map(c=><div key={c} onClick={()=>setNewLoan(p=>({...p,color:c}))} style={{width:"22px",height:"22px",borderRadius:"50%",background:c,cursor:"pointer",border:newLoan.color===c?"3px solid #fff":"3px solid transparent"}}/>)}
             </div>
-          )}
-
+            <div style={{display:"flex",gap:"8px"}}>
+              <button style={s.btn()} onClick={addLoan}>Guardar</button>
+              <button style={s.btn(T.card,T.muted)} onClick={()=>setShowLoanForm(false)}>Cancelar</button>
+            </div>
+          </div>}
+          {loans.length===0&&<div style={{...s.card,textAlign:"center",padding:"32px"}}>
+            <div style={{fontSize:"32px",marginBottom:"8px"}}>💚</div>
+            <div style={{fontSize:"14px",color:"#10b981",fontWeight:"600"}}>Sin préstamos registrados</div>
+            <div style={{fontSize:"12px",color:T.muted,marginTop:"4px"}}>Registra cuando prestes dinero a alguien</div>
+          </div>}
           {loans.map(loan=>{
-            const pct = loan.amount>0 ? Math.round(((loan.amount-loan.remaining)/loan.amount)*100) : 0;
-            const overdue = loan.dueDate && loan.remaining>0 && new Date(loan.dueDate)<new Date();
+            const pct = loan.amount>0?Math.round(((loan.amount-loan.remaining)/loan.amount)*100):0;
+            const overdue = loan.dueDate&&loan.remaining>0&&new Date(loan.dueDate)<new Date();
             return(
-              <div key={loan.id} style={{...s.card,borderLeft:`3px solid ${loan.color}`}}>
+              <div key={loan.id} style={{...s.card,borderLeft:`3px solid ${loan.color||"#3b82f6"}`}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"8px"}}>
                   <div>
-                    <div style={{fontSize:"14px",fontWeight:"700",color:loan.color}}>{loan.name}</div>
-                    <div style={{fontSize:"11px",color:T.muted,marginTop:"2px"}}>
-                      {accounts.find(a=>a.id===loan.account)?.icon} {accounts.find(a=>a.id===loan.account)?.name}
-                      {loan.description&&` · ${loan.description}`}
-                    </div>
-                    {loan.dueDate&&(
-                      <div style={{fontSize:"10px",color:overdue?"#ef4444":"#f59e0b",marginTop:"2px",fontWeight:"600"}}>
-                        {overdue?"⚠️ Vencido":"📅 Esperado"}: {loan.dueDate}
-                      </div>
-                    )}
+                    <div style={{fontSize:"14px",fontWeight:"700",color:loan.color||"#3b82f6"}}>{loan.name}</div>
+                    <div style={{fontSize:"11px",color:T.muted,marginTop:"2px"}}>{accounts.find(a=>a.id===loan.account)?.icon} {accounts.find(a=>a.id===loan.account)?.name}{loan.description&&` · ${loan.description}`}</div>
+                    {loan.dueDate&&<div style={{fontSize:"10px",color:overdue?"#ef4444":"#f59e0b",marginTop:"2px",fontWeight:"600"}}>{overdue?"⚠️ Vencido":"📅 Esperado"}: {loan.dueDate}</div>}
                   </div>
                   <div style={{textAlign:"right"}}>
                     <div style={{fontSize:"16px",fontWeight:"800",color:loan.remaining===0?"#10b981":"#ef4444"}}>{fmt(loan.remaining)}</div>
@@ -1127,14 +1104,12 @@ export default function App() {
                   </div>
                 </div>
                 <div style={{background:T.border,borderRadius:"4px",height:"5px",marginBottom:"8px"}}>
-                  <div style={{background:loan.color,height:"100%",borderRadius:"4px",width:pct+"%"}}/>
+                  <div style={{background:loan.color||"#3b82f6",height:"100%",borderRadius:"4px",width:pct+"%"}}/>
                 </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:"11px",color:T.muted}}>{pct}% cobrado · prestado {fmt(loan.amount)}</span>
+                  <span style={{fontSize:"11px",color:T.muted}}>{pct}% cobrado · {fmt(loan.amount)} prestado</span>
                   <div style={{display:"flex",gap:"5px"}}>
-                    {loan.remaining>0&&(
-                      <button onClick={()=>collectLoan(loan.id)} style={{...s.btn("#071a12"),color:"#10b981",border:"1px solid #10b98133",fontSize:"11px",padding:"4px 10px"}}>✓ Cobrar</button>
-                    )}
+                    {loan.remaining>0&&<button onClick={()=>collectLoan(loan.id)} style={{...s.btn("#071a12"),color:"#10b981",border:"1px solid #10b98133",fontSize:"11px",padding:"4px 10px"}}>✓ Cobrar</button>}
                     {loan.remaining===0&&<span style={{fontSize:"11px",color:"#10b981",fontWeight:"700"}}>🎉 ¡Cobrado!</span>}
                     <button onClick={()=>deleteLoan(loan.id)} style={{background:"#2a1a1a",border:"none",borderRadius:"6px",padding:"4px 7px",cursor:"pointer",fontSize:"11px",color:"#ef4444"}}>🗑️</button>
                   </div>
@@ -1142,228 +1117,184 @@ export default function App() {
               </div>
             );
           })}
-        </div>
-      )}
+        </div>}
 
-      {/* ── DEUDAS TAB ─────────────────────────────────────────── */}
-      {debtTab==="deudas"&&(
-      <div>
-      {/* ── Payment Dialog ──────────────────────────────────────────── */}
-      {payingDebt&&(
-        <div style={{position:"fixed",inset:0,background:"#000000cc",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}}>
-          <div style={{...s.card,width:"100%",maxWidth:"400px",border:`1px solid ${payingDebt.color}55`}}>
-            <div style={{fontSize:"15px",fontWeight:"800",color:payingDebt.color,marginBottom:"4px"}}>💳 Registrar pago</div>
-            <div style={{fontSize:"12px",color:"#476282",marginBottom:"14px"}}>{payingDebt.name} · Capital pendiente: {fmt(payingDebt.remaining)}</div>
-
-            {/* Info chips */}
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"6px",marginBottom:"14px"}}>
-              <div style={{background:"#08111f",borderRadius:"8px",padding:"7px",textAlign:"center"}}>
-                <div style={{fontSize:"9px",color:"#476282"}}>Cuota</div>
-                <div style={{fontSize:"12px",fontWeight:"700",color:"#e2e8f0"}}>{fmt(payingDebt.monthly)}</div>
-              </div>
-              <div style={{background:"#1a0f00",borderRadius:"8px",padding:"7px",textAlign:"center"}}>
-                <div style={{fontSize:"9px",color:"#476282"}}>Interés</div>
-                <div style={{fontSize:"12px",fontWeight:"700",color:"#f59e0b"}}>{fmt(payingDebt.interestAmt)}</div>
-              </div>
-              <div style={{background:"#071a12",borderRadius:"8px",padding:"7px",textAlign:"center"}}>
-                <div style={{fontSize:"9px",color:"#476282"}}>A capital</div>
-                <div style={{fontSize:"12px",fontWeight:"700",color:"#10b981"}}>{fmt(payingDebt.payType==="ambos"?Math.max(0,(parseInt(payingDebt.customAmount)||0)-payingDebt.interestAmt):payingDebt.payType==="capital"||payingDebt.payType==="abono"?(parseInt(payingDebt.customAmount)||0):0)}</div>
-              </div>
-            </div>
-
-            {/* Payment type */}
-            <div style={{fontSize:"11px",color:"#476282",marginBottom:"6px",fontWeight:"600",textTransform:"uppercase",letterSpacing:"1px"}}>Tipo de pago</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px",marginBottom:"12px"}}>
-              {[
-                {key:"ambos",   label:"💳 Capital + Interés", amount: payingDebt.monthly},
-                {key:"interes", label:"📊 Solo Interés",       amount: payingDebt.interestAmt},
-                {key:"capital", label:"🏦 Solo Capital",       amount: payingDebt.capitalAmt},
-                {key:"abono",   label:"💰 Abono libre",        amount: null},
-              ].map(opt=>(
-                <div key={opt.key} onClick={()=>setPayingDebt(p=>({...p, payType:opt.key, customAmount: opt.amount||p.customAmount}))}
-                  style={{padding:"8px 10px",borderRadius:"9px",border:`1px solid ${payingDebt.payType===opt.key?payingDebt.color:"#1e3a5f"}`,background:payingDebt.payType===opt.key?payingDebt.color+"22":"transparent",cursor:"pointer"}}>
-                  <div style={{fontSize:"12px",fontWeight:"600",color:payingDebt.payType===opt.key?payingDebt.color:"#94a3b8"}}>{opt.label}</div>
-                  {opt.amount!=null&&<div style={{fontSize:"10px",color:"#476282",marginTop:"2px"}}>{fmt(opt.amount)}</div>}
+        {/* ── DEUDAS ── */}
+        {debtTab==="deudas"&&<div>
+          {/* Payment dialog */}
+          {payingDebt&&<div style={{position:"fixed",inset:0,background:"#000000cc",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}}>
+            <div style={{...s.card,width:"100%",maxWidth:"400px",border:`1px solid ${payingDebt.color}55`}}>
+              <div style={{fontSize:"15px",fontWeight:"800",color:payingDebt.color,marginBottom:"4px"}}>💳 Registrar pago</div>
+              <div style={{fontSize:"12px",color:T.muted,marginBottom:"14px"}}>{payingDebt.name} · Capital: {fmt(payingDebt.remaining)}</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"6px",marginBottom:"14px"}}>
+                <div style={{background:T.input,borderRadius:"8px",padding:"7px",textAlign:"center"}}>
+                  <div style={{fontSize:"9px",color:T.muted}}>Cuota</div>
+                  <div style={{fontSize:"12px",fontWeight:"700",color:T.text}}>{fmt(payingDebt.monthly)}</div>
                 </div>
-              ))}
-            </div>
-
-            {/* Amount */}
-            <div style={{fontSize:"11px",color:"#476282",marginBottom:"6px",fontWeight:"600",textTransform:"uppercase",letterSpacing:"1px"}}>Monto a pagar</div>
-            <NumInput style={{...s.input,marginBottom:"8px",fontSize:"18px",fontWeight:"700"}}
-              placeholder="Monto" value={payingDebt.customAmount}
-              onChange={v=>setPayingDebt(p=>({...p,customAmount:v}))}/>
-
-            {/* Account */}
-            <select style={{...s.select,marginBottom:"14px"}} value={payingDebt.account||"finandina"} onChange={e=>setPayingDebt(p=>({...p,account:e.target.value}))}>
-              {accounts.map(a=><option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
-            </select>
-
-            {/* New remaining preview */}
-            {payingDebt.payType!=="interes"&&(
-              <div style={{background:"#071a12",border:"1px solid #10b98133",borderRadius:"8px",padding:"8px",marginBottom:"12px",textAlign:"center"}}>
-                <div style={{fontSize:"11px",color:"#476282"}}>Capital restante después del pago</div>
-                <div style={{fontSize:"16px",fontWeight:"800",color:"#10b981"}}>
-                  {fmt(Math.max(0, payingDebt.remaining - (
-                    payingDebt.payType==="capital"||payingDebt.payType==="abono"
-                      ? (parseInt(payingDebt.customAmount)||0)
-                      : Math.max(0,(parseInt(payingDebt.customAmount)||0)-payingDebt.interestAmt)
-                  )))}
+                <div style={{background:T.input,borderRadius:"8px",padding:"7px",textAlign:"center"}}>
+                  <div style={{fontSize:"9px",color:T.muted}}>Interés</div>
+                  <div style={{fontSize:"12px",fontWeight:"700",color:"#f59e0b"}}>{fmt(payingDebt.interestAmt)}</div>
+                </div>
+                <div style={{background:T.input,borderRadius:"8px",padding:"7px",textAlign:"center"}}>
+                  <div style={{fontSize:"9px",color:T.muted}}>A capital</div>
+                  <div style={{fontSize:"12px",fontWeight:"700",color:"#10b981"}}>{fmt(payingDebt.payType==="ambos"?Math.max(0,(parseInt(payingDebt.customAmount)||0)-payingDebt.interestAmt):payingDebt.payType==="capital"||payingDebt.payType==="abono"?(parseInt(payingDebt.customAmount)||0):0)}</div>
                 </div>
               </div>
-            )}
+              <div style={{fontSize:"11px",color:T.muted,marginBottom:"6px",fontWeight:"600",textTransform:"uppercase",letterSpacing:"1px"}}>Tipo de pago</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px",marginBottom:"12px"}}>
+                {[{key:"ambos",label:"💳 Capital + Interés",amount:payingDebt.monthly},{key:"interes",label:"📊 Solo Interés",amount:payingDebt.interestAmt},{key:"capital",label:"🏦 Solo Capital",amount:payingDebt.capitalAmt},{key:"abono",label:"💰 Abono libre",amount:null}].map(opt=>(
+                  <div key={opt.key} onClick={()=>setPayingDebt(p=>({...p,payType:opt.key,customAmount:opt.amount||p.customAmount}))} style={{padding:"8px 10px",borderRadius:"9px",border:`1px solid ${payingDebt.payType===opt.key?payingDebt.color:T.border}`,background:payingDebt.payType===opt.key?payingDebt.color+"22":"transparent",cursor:"pointer"}}>
+                    <div style={{fontSize:"12px",fontWeight:"600",color:payingDebt.payType===opt.key?payingDebt.color:T.muted}}>{opt.label}</div>
+                    {opt.amount!=null&&<div style={{fontSize:"10px",color:T.muted,marginTop:"2px"}}>{fmt(opt.amount)}</div>}
+                  </div>
+                ))}
+              </div>
+              <div style={{fontSize:"11px",color:T.muted,marginBottom:"6px",fontWeight:"600",textTransform:"uppercase",letterSpacing:"1px"}}>Monto a pagar</div>
+              <NumInput style={{...s.input,marginBottom:"8px",fontSize:"18px",fontWeight:"700"}} placeholder="Monto" value={payingDebt.customAmount} onChange={v=>setPayingDebt(p=>({...p,customAmount:v}))}/>
+              <select style={{...s.select,marginBottom:"14px"}} value={payingDebt.account||"finandina"} onChange={e=>setPayingDebt(p=>({...p,account:e.target.value}))}>
+                {accounts.map(a=><option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
+              </select>
+              {payingDebt.payType!=="interes"&&<div style={{background:T.input,border:`1px solid ${T.border}`,borderRadius:"8px",padding:"8px",marginBottom:"12px",textAlign:"center"}}>
+                <div style={{fontSize:"11px",color:T.muted}}>Capital restante después del pago</div>
+                <div style={{fontSize:"16px",fontWeight:"800",color:"#10b981"}}>{fmt(Math.max(0,payingDebt.remaining-(payingDebt.payType==="capital"||payingDebt.payType==="abono"?(parseInt(payingDebt.customAmount)||0):Math.max(0,(parseInt(payingDebt.customAmount)||0)-payingDebt.interestAmt))))}</div>
+              </div>}
+              <div style={{display:"flex",gap:"8px"}}>
+                <button style={s.btn()} onClick={processPayment}>✓ Confirmar pago</button>
+                <button style={s.btn("#1a3454","#94a3b8")} onClick={()=>setPayingDebt(null)}>Cancelar</button>
+              </div>
+            </div>
+          </div>}
 
-            <div style={{display:"flex",gap:"8px"}}>
-              <button style={s.btn()} onClick={processPayment}>✓ Confirmar pago</button>
-              <button style={s.btn("#1a3454","#94a3b8")} onClick={()=>setPayingDebt(null)}>Cancelar</button>
+          {/* Edit modal */}
+          {editingDebt&&<div style={{position:"fixed",inset:0,background:"#000000bb",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",overflowY:"auto"}}>
+            <div style={{...s.card,width:"100%",maxWidth:"400px",border:`1px solid ${editingDebt.color}55`}}>
+              <div style={{fontSize:"14px",fontWeight:"700",color:editingDebt.color,marginBottom:"12px"}}>✏️ Editar deuda</div>
+              <input style={inp} placeholder="Nombre" value={editingDebt.name} onChange={e=>setEditingDebt(p=>({...p,name:e.target.value}))}/>
+              <select style={inp} value={editingDebt.type||"capital_interes"} onChange={e=>setEditingDebt(p=>({...p,type:e.target.value}))}>
+                <option value="capital_interes">Capital + Interés</option>
+                <option value="solo_interes">Solo Interés (capital no baja)</option>
+                <option value="solo_capital">Solo Capital (sin interés)</option>
+              </select>
+              <NumInput style={inp} placeholder="Capital pendiente" value={editingDebt.remaining} onChange={v=>setEditingDebt(p=>({...p,remaining:v}))}/>
+              <NumInput style={inp} placeholder="Cuota mensual" value={editingDebt.monthly} onChange={v=>setEditingDebt(p=>({...p,monthly:v}))}/>
+              {(editingDebt.type==="solo_interes"||editingDebt.type==="capital_interes")&&<input style={inp} type="text" inputMode="decimal" placeholder="Tasa de interés % mensual" value={editingDebt.rate||""} onChange={e=>setEditingDebt(p=>({...p,rate:parseFloat(e.target.value)||0}))}/>}
+              <input style={inp} type="text" inputMode="numeric" placeholder="Día de pago (ej: 5)" value={editingDebt.dueDay||""} onChange={e=>setEditingDebt(p=>({...p,dueDay:parseInt(e.target.value)||null}))}/>
+              <div style={{display:"flex",gap:"6px",marginBottom:"10px"}}>
+                {COLORS.map(c=><div key={c} onClick={()=>setEditingDebt(p=>({...p,color:c}))} style={{width:"22px",height:"22px",borderRadius:"50%",background:c,cursor:"pointer",border:editingDebt.color===c?"3px solid #fff":"3px solid transparent"}}/>)}
+              </div>
+              <div style={{display:"flex",gap:"8px"}}>
+                <button style={s.btn()} onClick={saveDebtEdit}>Guardar</button>
+                <button style={s.btn("#1a3454","#94a3b8")} onClick={()=>setEditingDebt(null)}>Cancelar</button>
+              </div>
+            </div>
+          </div>}
+
+          {/* Summary */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"10px"}}>
+            <div style={{...s.card,background:"#1a0808",border:"1px solid #ef444433"}}>
+              <div style={s.label}>Deuda total</div>
+              <div style={{fontSize:"16px",fontWeight:"800",color:"#ef4444"}}>{fmt(totalDebt)}</div>
+            </div>
+            <div style={{...s.card,background:"#1a0f00",border:"1px solid #f59e0b33"}}>
+              <div style={s.label}>Cuotas/mes</div>
+              <div style={{fontSize:"16px",fontWeight:"800",color:"#f59e0b"}}>{fmt(totalMonthly)}</div>
             </div>
           </div>
-        </div>
-      )}
-      {/* Edit modal */}
-      {editingDebt&&(
-        <div style={{position:"fixed",inset:0,background:"#000000bb",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",overflowY:"auto"}}>
-          <div style={{...s.card,width:"100%",maxWidth:"400px",border:`1px solid ${editingDebt.color}55`}}>
-            <div style={{fontSize:"14px",fontWeight:"700",color:editingDebt.color,marginBottom:"12px"}}>✏️ Editar deuda</div>
-            <input style={inp} placeholder="Nombre" value={editingDebt.name} onChange={e=>setEditingDebt(p=>({...p,name:e.target.value}))}/>
-            <select style={inp} value={editingDebt.type||"capital_interes"} onChange={e=>setEditingDebt(p=>({...p,type:e.target.value}))}>
-              <option value="capital_interes">Capital + Interés (cuota incluye ambos)</option>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"10px"}}>
+            <div style={{...s.card,background:"#1a0808",border:"1px solid #ef444433"}}>
+              <div style={s.label}>Personales</div>
+              <div style={{fontSize:"14px",fontWeight:"800",color:"#ef4444"}}>{fmt(debts.slice(0,10).reduce((sum,d)=>sum+d.remaining,0))}</div>
+            </div>
+            <div style={{...s.card,background:"#1a0f00",border:"1px solid #f59e0b33"}}>
+              <div style={s.label}>Créditos virtuales</div>
+              <div style={{fontSize:"14px",fontWeight:"800",color:"#f59e0b"}}>{fmt(debts.slice(10).reduce((sum,d)=>sum+d.remaining,0))}</div>
+            </div>
+          </div>
+
+          {totalMonthly>income&&<div style={{...s.card,background:"#1a0808",border:"1px solid #ef4444",marginBottom:"10px"}}>
+            <div style={{fontSize:"12px",color:"#ef4444",fontWeight:"700"}}>⚠️ Cuotas superan ingresos registrados</div>
+            <div style={{fontSize:"11px",color:"#94a3b8",marginTop:"3px"}}>Déficit: {fmt(totalMonthly-income)}</div>
+          </div>}
+
+          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:"10px"}}>
+            <button style={s.btn()} onClick={()=>setShowDebtForm(f=>!f)}>+ Nueva deuda</button>
+          </div>
+
+          {showDebtForm&&<div style={{...s.card,marginBottom:"10px",border:"1px solid #ef444433"}}>
+            <div style={{fontSize:"13px",fontWeight:"700",color:"#ef4444",marginBottom:"10px"}}>Nueva deuda</div>
+            <input style={inp} placeholder="Nombre" value={newDebt.name} onChange={e=>setNewDebt(p=>({...p,name:e.target.value}))}/>
+            <select style={inp} value={newDebt.type} onChange={e=>setNewDebt(p=>({...p,type:e.target.value}))}>
+              <option value="capital_interes">Capital + Interés</option>
               <option value="solo_interes">Solo Interés (capital no baja)</option>
               <option value="solo_capital">Solo Capital (sin interés)</option>
             </select>
-            <NumInput style={inp} placeholder="Capital pendiente" value={editingDebt.remaining} onChange={v=>setEditingDebt(p=>({...p,remaining:v}))}/>
-            <NumInput style={inp} placeholder="Cuota mensual" value={editingDebt.monthly} onChange={v=>setEditingDebt(p=>({...p,monthly:v}))}/>
-            {(editingDebt.type==="solo_interes"||editingDebt.type==="capital_interes")&&(
-              <input style={{...inp,marginBottom:"8px"}} type="text" inputMode="decimal" placeholder="Tasa de interés % mensual (ej: 5, 7)" value={editingDebt.rate||""} onChange={e=>setEditingDebt(p=>({...p,rate:parseFloat(e.target.value)||0}))}/>
-            )}
-            <input style={inp} type="text" inputMode="numeric" placeholder="Día de pago del mes (ej: 5)" value={editingDebt.dueDay||""} onChange={e=>setEditingDebt(p=>({...p,dueDay:parseInt(e.target.value)||null}))}/>
+            <NumInput style={inp} placeholder="Capital total" value={newDebt.total} onChange={v=>setNewDebt(p=>({...p,total:v,remaining:v}))}/>
+            <NumInput style={inp} placeholder="Saldo pendiente hoy" value={newDebt.remaining} onChange={v=>setNewDebt(p=>({...p,remaining:v}))}/>
+            <NumInput style={inp} placeholder="Cuota mensual" value={newDebt.monthly} onChange={v=>setNewDebt(p=>({...p,monthly:v}))}/>
+            {(newDebt.type==="solo_interes"||newDebt.type==="capital_interes")&&<input style={inp} type="text" inputMode="decimal" placeholder="Tasa % mensual (ej: 5)" value={newDebt.rate} onChange={e=>setNewDebt(p=>({...p,rate:e.target.value}))}/>}
+            <input style={inp} type="text" inputMode="numeric" placeholder="Día de pago (ej: 5)" value={newDebt.dueDay} onChange={e=>setNewDebt(p=>({...p,dueDay:e.target.value}))}/>
             <div style={{display:"flex",gap:"6px",marginBottom:"10px"}}>
-              {colors.map(c=><div key={c} onClick={()=>setEditingDebt(p=>({...p,color:c}))} style={{width:"22px",height:"22px",borderRadius:"50%",background:c,cursor:"pointer",border:editingDebt.color===c?"3px solid #fff":"3px solid transparent"}}/>)}
+              {COLORS.map(c=><div key={c} onClick={()=>setNewDebt(p=>({...p,color:c}))} style={{width:"22px",height:"22px",borderRadius:"50%",background:c,cursor:"pointer",border:newDebt.color===c?"3px solid #fff":"3px solid transparent"}}/>)}
             </div>
             <div style={{display:"flex",gap:"8px"}}>
-              <button style={s.btn()} onClick={saveDebtEdit}>Guardar</button>
-              <button style={s.btn("#1a3454","#94a3b8")} onClick={()=>setEditingDebt(null)}>Cancelar</button>
+              <button style={s.btn()} onClick={addDebt}>Guardar</button>
+              <button style={s.btn("#1a3454","#94a3b8")} onClick={()=>setShowDebtForm(false)}>Cancelar</button>
             </div>
-          </div>
-        </div>
-      )}
+          </div>}
 
-      {/* Summary */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"10px"}}>
-        <div style={{...s.card,background:"#1a0808",border:"1px solid #ef444433"}}>
-          <div style={s.label}>Deuda total</div>
-          <div style={{fontSize:"16px",fontWeight:"800",color:"#ef4444"}}>{fmt(totalDebt)}</div>
-        </div>
-        <div style={{...s.card,background:"#1a0f00",border:"1px solid #f59e0b33"}}>
-          <div style={s.label}>Cuotas/mes</div>
-          <div style={{fontSize:"16px",fontWeight:"800",color:"#f59e0b"}}>{fmt(totalMonthly)}</div>
-        </div>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"10px"}}>
-        <div style={{...s.card,background:"#1a0808",border:"1px solid #ef444433"}}>
-          <div style={s.label}>Personales</div>
-          <div style={{fontSize:"14px",fontWeight:"800",color:"#ef4444"}}>{fmt(debts.slice(0,10).reduce((s,d)=>s+d.remaining,0))}</div>
-        </div>
-        <div style={{...s.card,background:"#1a0f00",border:"1px solid #f59e0b33"}}>
-          <div style={s.label}>Créditos virtuales</div>
-          <div style={{fontSize:"14px",fontWeight:"800",color:"#f59e0b"}}>{fmt(debts.slice(10).reduce((s,d)=>s+d.remaining,0))}</div>
-        </div>
-      </div>
-
-      {totalMonthly>income&&(
-        <div style={{...s.card,background:"#1a0808",border:"1px solid #ef4444",marginBottom:"10px"}}>
-          <div style={{fontSize:"12px",color:"#ef4444",fontWeight:"700"}}>⚠️ Cuotas superan ingresos registrados</div>
-          <div style={{fontSize:"11px",color:"#94a3b8",marginTop:"3px"}}>Déficit: {fmt(totalMonthly-income)}</div>
-        </div>
-      )}
-
-      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:"10px"}}>
-        <button style={s.btn()} onClick={()=>setShowDebtForm(f=>!f)}>+ Nueva deuda</button>
-      </div>
-
-      {showDebtForm&&(
-        <div style={{...s.card,marginBottom:"10px",border:"1px solid #ef444433"}}>
-          <div style={{fontSize:"13px",fontWeight:"700",color:"#ef4444",marginBottom:"10px"}}>Nueva deuda</div>
-          <input style={inp} placeholder="Nombre" value={newDebt.name} onChange={e=>setNewDebt(p=>({...p,name:e.target.value}))}/>
-          <select style={inp} value={newDebt.type} onChange={e=>setNewDebt(p=>({...p,type:e.target.value}))}>
-            <option value="capital_interes">Capital + Interés (cuota incluye ambos)</option>
-            <option value="solo_interes">Solo Interés (capital no baja)</option>
-            <option value="solo_capital">Solo Capital (sin interés)</option>
-          </select>
-          <NumInput style={inp} placeholder="Capital total" value={newDebt.total} onChange={v=>setNewDebt(p=>({...p,total:v,remaining:v}))}/>
-          <NumInput style={inp} placeholder="Saldo pendiente hoy" value={newDebt.remaining} onChange={v=>setNewDebt(p=>({...p,remaining:v}))}/>
-          <NumInput style={inp} placeholder="Cuota mensual" value={newDebt.monthly} onChange={v=>setNewDebt(p=>({...p,monthly:v}))}/>
-          {(newDebt.type==="solo_interes"||newDebt.type==="capital_interes")&&(
-            <input style={inp} type="text" inputMode="decimal" placeholder="Tasa % mensual (ej: 5)" value={newDebt.rate} onChange={e=>setNewDebt(p=>({...p,rate:e.target.value}))}/>
-          )}
-          <input style={inp} type="text" inputMode="numeric" placeholder="Día de pago (ej: 5)" value={newDebt.dueDay} onChange={e=>setNewDebt(p=>({...p,dueDay:e.target.value}))}/>
-          <div style={{display:"flex",gap:"6px",marginBottom:"10px"}}>
-            {colors.map(c=><div key={c} onClick={()=>setNewDebt(p=>({...p,color:c}))} style={{width:"22px",height:"22px",borderRadius:"50%",background:c,cursor:"pointer",border:newDebt.color===c?"3px solid #fff":"3px solid transparent"}}/>)}
-          </div>
-          <div style={{display:"flex",gap:"8px"}}>
-            <button style={s.btn()} onClick={addDebt}>Guardar</button>
-            <button style={s.btn("#1a3454","#94a3b8")} onClick={()=>setShowDebtForm(false)}>Cancelar</button>
-          </div>
-        </div>
-      )}
-
-      {debts.map(debt=>{
-        const pct = debt.total>0 ? Math.round(((debt.total-debt.remaining)/debt.total)*100) : 0;
-        const interestAmt = debt.rate>0 ? Math.round(debt.remaining*debt.rate/100) : 0;
-        const capitalAmt = debt.type==="solo_interes" ? 0 : debt.type==="solo_capital" ? debt.monthly : Math.max(0, debt.monthly - interestAmt);
-        const months = debt.type==="solo_interes" ? "∞" : capitalAmt>0 ? Math.ceil(debt.remaining/capitalAmt) : "∞";
-        const typeInfo = DEBT_TYPE_LABELS[debt.type||"capital_interes"] || DEBT_TYPE_LABELS["capital_interes"];
-        return(
-          <div key={debt.id} style={{...s.card,borderLeft:`3px solid ${debt.color}`}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"6px"}}>
-              <div>
-                <div style={{fontSize:"14px",fontWeight:"700",color:debt.color}}>{debt.name}</div>
-                <div style={{display:"flex",alignItems:"center",gap:"6px",marginTop:"2px"}}>
-                  <span style={{fontSize:"10px",background:typeInfo.color+"22",color:typeInfo.color,padding:"1px 6px",borderRadius:"8px",fontWeight:"600"}}>{typeInfo.label}</span>
-                  {debt.rate>0&&<span style={{fontSize:"10px",color:"#476282"}}>{debt.rate}% mensual</span>}
-                  {debt.dueDay&&<span style={{fontSize:"10px",color:"#476282"}}>Día {debt.dueDay}</span>}
+          {debts.map(debt=>{
+            const pct = debt.total>0?Math.round(((debt.total-debt.remaining)/debt.total)*100):0;
+            const interestAmt = debt.rate>0?Math.round(debt.remaining*debt.rate/100):0;
+            const capitalAmt = debt.type==="solo_interes"?0:debt.type==="solo_capital"?debt.monthly:Math.max(0,debt.monthly-interestAmt);
+            const months = debt.type==="solo_interes"?"∞":capitalAmt>0?Math.ceil(debt.remaining/capitalAmt):"∞";
+            const typeInfo = DEBT_TYPE_LABELS[debt.type||"capital_interes"]||DEBT_TYPE_LABELS["capital_interes"];
+            return(
+              <div key={debt.id} style={{...s.card,borderLeft:`3px solid ${debt.color}`}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"6px"}}>
+                  <div>
+                    <div style={{fontSize:"14px",fontWeight:"700",color:debt.color}}>{debt.name}</div>
+                    <div style={{display:"flex",alignItems:"center",gap:"6px",marginTop:"2px"}}>
+                      <span style={{fontSize:"10px",background:typeInfo.color+"22",color:typeInfo.color,padding:"1px 6px",borderRadius:"8px",fontWeight:"600"}}>{typeInfo.label}</span>
+                      {debt.rate>0&&<span style={{fontSize:"10px",color:T.muted}}>{debt.rate}% mensual</span>}
+                      {debt.dueDay&&<span style={{fontSize:"10px",color:T.muted}}>Día {debt.dueDay}</span>}
+                    </div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:"16px",fontWeight:"800",color:"#ef4444"}}>{fmt(debt.remaining)}</div>
+                    <div style={{fontSize:"10px",color:T.muted}}>capital pendiente</div>
+                  </div>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"4px",marginBottom:"8px"}}>
+                  <div style={{background:T.input,borderRadius:"6px",padding:"5px",textAlign:"center"}}>
+                    <div style={{fontSize:"9px",color:T.muted}}>Cuota</div>
+                    <div style={{fontSize:"11px",fontWeight:"700",color:T.text}}>{fmt(debt.monthly)}</div>
+                  </div>
+                  <div style={{background:T.input,borderRadius:"6px",padding:"5px",textAlign:"center"}}>
+                    <div style={{fontSize:"9px",color:T.muted}}>Interés</div>
+                    <div style={{fontSize:"11px",fontWeight:"700",color:"#f59e0b"}}>{fmt(interestAmt)}</div>
+                  </div>
+                  <div style={{background:T.input,borderRadius:"6px",padding:"5px",textAlign:"center"}}>
+                    <div style={{fontSize:"9px",color:T.muted}}>A capital</div>
+                    <div style={{fontSize:"11px",fontWeight:"700",color:"#10b981"}}>{fmt(capitalAmt)}</div>
+                  </div>
+                </div>
+                <div style={{background:T.border,borderRadius:"4px",height:"4px",marginBottom:"6px"}}>
+                  <div style={{background:debt.color,height:"100%",borderRadius:"4px",width:pct+"%"}}/>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:"11px",color:T.muted}}>{pct}% · {months!=="∞"?`${months} mes(es)`:debt.type==="solo_interes"?"Solo interés":"∞"}</span>
+                  <div style={{display:"flex",gap:"5px"}}>
+                    {debt.remaining>0&&<button onClick={()=>openPayDialog(debt.id)} style={{...s.btn(T.input),color:"#10b981",border:"1px solid #10b98133",fontSize:"11px",padding:"4px 10px"}}>💳 Pagar</button>}
+                    {debt.remaining===0&&debt.type!=="solo_interes"&&<span style={{fontSize:"11px",color:"#10b981",fontWeight:"700"}}>🎉 ¡Pagado!</span>}
+                    <button onClick={()=>setEditingDebt({...debt})} style={{background:T.input,border:"none",borderRadius:"6px",padding:"4px 7px",cursor:"pointer",fontSize:"11px",color:T.muted}}>✏️</button>
+                    <button onClick={()=>deleteDebt(debt.id)} style={{background:"#2a1a1a",border:"none",borderRadius:"6px",padding:"4px 7px",cursor:"pointer",fontSize:"11px",color:"#ef4444"}}>🗑️</button>
+                  </div>
                 </div>
               </div>
-              <div style={{textAlign:"right"}}>
-                <div style={{fontSize:"16px",fontWeight:"800",color:"#ef4444"}}>{fmt(debt.remaining)}</div>
-                <div style={{fontSize:"10px",color:"#476282"}}>capital pendiente</div>
-              </div>
-            </div>
-
-            {/* Payment breakdown */}
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"4px",marginBottom:"8px"}}>
-              <div style={{background:"#08111f",borderRadius:"6px",padding:"5px",textAlign:"center"}}>
-                <div style={{fontSize:"9px",color:"#476282"}}>Cuota</div>
-                <div style={{fontSize:"11px",fontWeight:"700",color:"#e2e8f0"}}>{fmt(debt.monthly)}</div>
-              </div>
-              <div style={{background:"#1a0808",borderRadius:"6px",padding:"5px",textAlign:"center"}}>
-                <div style={{fontSize:"9px",color:"#476282"}}>Interés</div>
-                <div style={{fontSize:"11px",fontWeight:"700",color:"#f59e0b"}}>{fmt(interestAmt)}</div>
-              </div>
-              <div style={{background:"#071a12",borderRadius:"6px",padding:"5px",textAlign:"center"}}>
-                <div style={{fontSize:"9px",color:"#476282"}}>A capital</div>
-                <div style={{fontSize:"11px",fontWeight:"700",color:"#10b981"}}>{fmt(capitalAmt)}</div>
-              </div>
-            </div>
-
-            <div style={{background:"#1a3454",borderRadius:"4px",height:"4px",marginBottom:"6px"}}>
-              <div style={{background:debt.color,height:"100%",borderRadius:"4px",width:pct+"%"}}/>
-            </div>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <span style={{fontSize:"11px",color:"#476282"}}>{pct}% pagado · {months!=="∞"?`${months} mes(es)`:debt.type==="solo_interes"?"Solo interés perpetuo":"∞"}</span>
-              <div style={{display:"flex",gap:"5px"}}>
-                {debt.remaining>0&&<button onClick={()=>openPayDialog(debt.id)} style={{...s.btn("#071a12"),color:"#10b981",border:"1px solid #10b98133",fontSize:"11px",padding:"4px 10px"}}>💳 Pagar</button>}
-                {debt.remaining===0&&debt.type!=="solo_interes"&&<span style={{fontSize:"11px",color:"#10b981",fontWeight:"700"}}>🎉 ¡Pagado!</span>}
-                <button onClick={()=>setEditingDebt({...debt})} style={{background:"#1a3454",border:"none",borderRadius:"6px",padding:"4px 7px",cursor:"pointer",fontSize:"11px",color:"#94a3b8"}}>✏️</button>
-                <button onClick={()=>deleteDebt(debt.id)} style={{background:"#2a1a1a",border:"none",borderRadius:"6px",padding:"4px 7px",cursor:"pointer",fontSize:"11px",color:"#ef4444"}}>🗑️</button>
-              </div>
-            </div>
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>}
       </div>
-      )} {/* end deudas tab */}
-    </div>
     );
   };
 
@@ -1657,7 +1588,7 @@ export default function App() {
         </div>
       )}
       <div style={s.header}>
-        <div style={{fontSize:"17px",fontWeight:"800",color:"#10b981",letterSpacing:"-0.5px"}}>💚 MisFinanzas</div>
+        <div style={{fontSize:"17px",fontWeight:"800",color:"#10b981",letterSpacing:"-0.5px"}}>💚 DuoFinance</div>
         <div style={{fontSize:"11px",background:"#10b98122",color:"#10b981",padding:"3px 10px",borderRadius:"20px",border:"1px solid #10b98144"}}>Rafael &amp; Pareja</div>
       </div>
       <div style={s.nav}>
