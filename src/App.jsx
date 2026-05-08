@@ -379,6 +379,28 @@ function CatManager({expCats, incCats, setExpCats, setIncCats, s, T}) {
   );
 }
 
+// ── BUDGET ROW — standalone para evitar pérdida de foco ─────────────────────
+function BudgetRow({cat, spent, limit, pct, onLimitChange, s, T}) {
+  return (
+    <div style={s.card}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:"5px"}}>
+        <span style={{fontSize:"13px",fontWeight:"500",color:T.text}}>{cat}</span>
+        <span style={{fontSize:"12px",fontWeight:"700",color:pct>90?"#ef4444":pct>70?"#f59e0b":T.accent}}>{Math.round(pct)}%</span>
+      </div>
+      <div style={{background:T.border,borderRadius:"4px",height:"5px",marginBottom:"7px"}}>
+        <div style={{background:pct>90?"#ef4444":pct>70?"#f59e0b":T.accent,height:"100%",borderRadius:"4px",width:pct+"%"}}/>
+      </div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <span style={{fontSize:"11px",color:T.muted}}>{new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",minimumFractionDigits:0}).format(spent)}</span>
+        <div style={{display:"flex",alignItems:"center",gap:"6px"}}>
+          <span style={{fontSize:"11px",color:T.muted}}>Límite:</span>
+          <NumInput value={limit} onChange={onLimitChange} style={{...s.input,width:"100px",padding:"4px 8px",fontSize:"12px",textAlign:"right"}}/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── APP ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const [view,         setView]         = useState("dashboard");
@@ -994,26 +1016,13 @@ export default function App() {
 
   const Presupuesto=()=>(
     <div>
-      <div style={{...s.card,background:"#071a12",border:"1px solid #10b98133"}}>
-        <div style={{fontSize:"13px",color:"#10b981",fontWeight:"600"}}>🎯 Presupuesto — {thisMonth()}</div>
+      <div style={{...s.card,background:"#071a12",border:`1px solid ${T.accent}33`}}>
+        <div style={{fontSize:"13px",color:T.accent,fontWeight:"600"}}>🎯 Presupuesto — {thisMonth()}</div>
       </div>
       {budgetRows.map(({cat,spent,limit,pct})=>(
-        <div key={cat} style={s.card}>
-          <div style={{display:"flex",justifyContent:"space-between",marginBottom:"5px"}}>
-            <span style={{fontSize:"13px",fontWeight:"500"}}>{cat}</span>
-            <span style={{fontSize:"12px",fontWeight:"700",color:pct>90?"#ef4444":pct>70?"#f59e0b":"#10b981"}}>{Math.round(pct)}%</span>
-          </div>
-          <div style={{background:"#1a3454",borderRadius:"4px",height:"5px",marginBottom:"7px"}}>
-            <div style={{background:pct>90?"#ef4444":pct>70?"#f59e0b":"#10b981",height:"100%",borderRadius:"4px",width:pct+"%"}}/>
-          </div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <span style={{fontSize:"11px",color:"#476282"}}>{fmt(spent)}</span>
-            <div style={{display:"flex",alignItems:"center",gap:"6px"}}>
-              <span style={{fontSize:"11px",color:"#476282"}}>Límite:</span>
-              <NumInput value={limit} onChange={v=>setBudget(p=>({...p,[cat]:v}))} style={{...s.input,width:"100px",padding:"4px 8px",fontSize:"12px",textAlign:"right"}}/>
-            </div>
-          </div>
-        </div>
+        <BudgetRow key={cat} cat={cat} spent={spent} limit={limit} pct={pct}
+          onLimitChange={v=>setBudget(p=>({...p,[cat]:v}))}
+          s={s} T={T}/>
       ))}
     </div>
   );
