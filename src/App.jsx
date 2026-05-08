@@ -521,6 +521,7 @@ export default function App() {
     const ctx=`Cuentas: ${JSON.stringify(accBalances.map(a=>({cuenta:a.name,saldo:fmt(a.balance)})))} | Total disponible: ${fmt(totalBalance)} | Ingresos mes: ${fmt(income)} | Gastos mes: ${fmt(expense)} | Deuda total: ${fmt(totalDebt)} | Cuotas/mes: ${fmt(totalMonthly)} | Deudas: ${JSON.stringify(debts.map(d=>({n:d.name,s:fmt(d.remaining),c:fmt(d.monthly)})))} | Top gastos: ${JSON.stringify(catData.slice(0,6).map(d=>({cat:d.name,monto:fmt(d.value)})))}`;
     try{
       const res=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:`Eres asesor financiero personal de Rafael, colombiano. Datos en tiempo real:\n${ctx}\nResponde en español, conciso y práctico. Montos en COP.`,messages:[...chatMsgs.slice(1).map(m=>({role:m.role,content:m.content})),{role:"user",content:msg}]})});
+      if(!res.ok){const e=await res.json();setChatMsgs(p=>[...p,{role:"assistant",content:`Error: ${e.error||res.status}`}]);setChatLoading(false);return;}
       const data=await res.json();
       setChatMsgs(p=>[...p,{role:"assistant",content:data.content?.[0]?.text||"Error."}]);
     }catch{setChatMsgs(p=>[...p,{role:"assistant",content:"Error de conexión."}]);}
