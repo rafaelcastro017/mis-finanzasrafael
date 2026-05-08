@@ -229,8 +229,12 @@ function TransactionForm({accounts, expGroups, incGroups, onSave, onCancel}) {
   const sel = {...inp};
   const btn = (bg="#10b981",tc="#000")=>({background:bg,color:tc,border:"none",borderRadius:"9px",padding:"10px 20px",fontSize:"14px",fontWeight:"600",cursor:"pointer",fontFamily:"'Sora',sans-serif"});
 
+  const [saveErr, setSaveErr] = useState("");
+
   const save = () => {
-    if(!tx.amount||!tx.description) return;
+    if(!tx.amount) { setSaveErr("⚠️ Ingresa un monto"); return; }
+    if(!tx.description) { setSaveErr("⚠️ Ingresa una descripción"); return; }
+    setSaveErr("");
     onSave(tx);
   };
 
@@ -284,6 +288,7 @@ function TransactionForm({accounts, expGroups, incGroups, onSave, onCancel}) {
           </div>
         </div>
       )}
+      {saveErr&&<div style={{fontSize:"12px",color:"#ef4444",marginBottom:"8px",fontWeight:"600"}}>{saveErr}</div>}
       <div style={{display:"flex",gap:"8px"}}>
         <button style={btn()} onClick={save}>Guardar</button>
         <button style={btn("#1a3454","#94a3b8")} onClick={onCancel}>Cancelar</button>
@@ -334,6 +339,7 @@ export default function App() {
   const [ready,        setReady]        = useState(false);
   const [showForm,     setShowForm]     = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [editingTx,    setEditingTx]    = useState(null);
   const [showDebtForm, setShowDebtForm] = useState(false);
   const [editingDebt,  setEditingDebt]  = useState(null);
@@ -366,9 +372,22 @@ export default function App() {
         if(d.budget)setBudget(d.budget);
         if(d.debts?.length)setDebts(d.debts);
         if(d.accounts?.length)setAccounts(d.accounts);
-        if(d.expCats?.length)setExpCats(d.expCats);
-        if(d.incCats?.length)setIncCats(d.incCats);
         if(d.savingsGoal)setSavingsGoal(d.savingsGoal);
+        // Migrate: if cats are flat arrays (old format), use defaults
+        if(d.expCats?.length) {
+          if(typeof d.expCats[0]==="string") {
+            // Old flat format — keep defaults (grouped)
+          } else {
+            setExpCats(d.expCats);
+          }
+        }
+        if(d.incCats?.length) {
+          if(typeof d.incCats[0]==="string") {
+            // Old flat format — keep defaults (grouped)
+          } else {
+            setIncCats(d.incCats);
+          }
+        }
       }
       setReady(true);
     })();
@@ -550,7 +569,20 @@ export default function App() {
 
   // ── VIEWS ────────────────────────────────────────────────────────────────────
   const Dashboard=()=>(
-    <div>
+    <div style={{paddingBottom:"80px"}}>
+      {/* Quick Add FAB */}
+      <div style={{position:"fixed",bottom:"24px",right:"20px",zIndex:150}}>
+        {showQuickAdd&&(
+          <div style={{position:"absolute",bottom:"60px",right:0,background:"#0b1930",border:"1px solid #1a3454",borderRadius:"14px",padding:"10px",minWidth:"160px",boxShadow:"0 8px 32px #00000088"}}>
+            <button onClick={()=>{setShowQuickAdd(false);setView("transactions");setTimeout(()=>setShowForm(true),100);}} style={{display:"block",width:"100%",background:"transparent",border:"none",color:"#e2e8f0",padding:"10px 14px",textAlign:"left",cursor:"pointer",fontSize:"14px",fontFamily:"'Sora',sans-serif",borderRadius:"8px"}}>💸 Nuevo gasto</button>
+            <button onClick={()=>{setShowQuickAdd(false);setView("transactions");setTimeout(()=>setShowForm(true),100);}} style={{display:"block",width:"100%",background:"transparent",border:"none",color:"#e2e8f0",padding:"10px 14px",textAlign:"left",cursor:"pointer",fontSize:"14px",fontFamily:"'Sora',sans-serif",borderRadius:"8px"}}>💰 Nuevo ingreso</button>
+            <button onClick={()=>{setShowQuickAdd(false);setView("transactions");setTimeout(()=>setShowTransfer(true),100);}} style={{display:"block",width:"100%",background:"transparent",border:"none",color:"#3b82f6",padding:"10px 14px",textAlign:"left",cursor:"pointer",fontSize:"14px",fontFamily:"'Sora',sans-serif",borderRadius:"8px"}}>🔄 Transferencia</button>
+          </div>
+        )}
+        <button onClick={()=>setShowQuickAdd(f=>!f)} style={{width:"54px",height:"54px",borderRadius:"50%",background:"#10b981",border:"none",color:"#000",fontSize:"26px",cursor:"pointer",boxShadow:"0 4px 20px #10b98166",display:"flex",alignItems:"center",justifyContent:"center"}}>
+          {showQuickAdd?"✕":"+"}
+        </button>
+      </div>
       <div style={s.fRow}>
         {["Todos","Rafael","Pareja"].map(u=><button key={u} style={s.fBtn(filterUser===u)} onClick={()=>setFilterUser(u)}>{u}</button>)}
       </div>
