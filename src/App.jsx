@@ -75,16 +75,6 @@ const fmtShort = n => new Intl.NumberFormat("es-CO",{style:"currency",currency:"
 const today    = () => new Date().toISOString().split("T")[0];
 const thisMonth= () => new Date().toISOString().slice(0,7);
 
-// ── THEMES ────────────────────────────────────────────────────────────────────
-const THEMES = {
-  oscuro:    { name:"🌑 Oscuro",    bg:"#060d1c", card:"#0b1930", border:"#1a3454", nav:"#08111f", header:"#0a1628", input:"#08111f", accent:"#10b981", text:"#e2e8f0", muted:"#476282", bubble:"#0b1930" },
-  bosque:    { name:"🌿 Bosque",    bg:"#051208", card:"#0a1f0f", border:"#1a3d20", nav:"#071510", header:"#0a1a0f", input:"#071510", accent:"#22c55e", text:"#e8f5e0", muted:"#4a7a54", bubble:"#0a1f0f" },
-  oceano:    { name:"🌊 Océano",    bg:"#030e1e", card:"#071a30", border:"#0e3050", nav:"#050f20", header:"#071a30", input:"#050f20", accent:"#0ea5e9", text:"#d0eeff", muted:"#3a6a8a", bubble:"#071a30" },
-  claro:     { name:"☀️ Claro",     bg:"#f0f4f8", card:"#ffffff", border:"#d0dce8", nav:"#ffffff", header:"#ffffff", input:"#f8fafc", accent:"#0d9488", text:"#1a2a3a", muted:"#6a8a9a", bubble:"#f0f4f8" },
-  lavanda:   { name:"🪻 Lavanda",   bg:"#f5f0ff", card:"#ffffff", border:"#ddd0f8", nav:"#faf7ff", header:"#faf7ff", input:"#f5f0ff", accent:"#8b5cf6", text:"#2d1f4a", muted:"#8a7aaa", bubble:"#ede8ff" },
-  melocoton: { name:"🍑 Melocotón", bg:"#fff7f0", card:"#ffffff", border:"#fde0cc", nav:"#fff7f0", header:"#fff7f0", input:"#fff7f0", accent:"#f97316", text:"#3a1a00", muted:"#b07050", bubble:"#ffe8d8" },
-};
-
 // ── NUM INPUT — no pierde foco, muestra formato al salir ─────────────────────
 function NumInput({value, onChange, placeholder, style}) {
   const [focused, setFocused] = useState(false);
@@ -239,12 +229,8 @@ function TransactionForm({accounts, expGroups, incGroups, onSave, onCancel}) {
   const sel = {...inp};
   const btn = (bg="#10b981",tc="#000")=>({background:bg,color:tc,border:"none",borderRadius:"9px",padding:"10px 20px",fontSize:"14px",fontWeight:"600",cursor:"pointer",fontFamily:"'Sora',sans-serif"});
 
-  const [saveErr, setSaveErr] = useState("");
-
   const save = () => {
-    if(!tx.amount) { setSaveErr("⚠️ Ingresa un monto"); return; }
-    if(!tx.description) { setSaveErr("⚠️ Ingresa una descripción"); return; }
-    setSaveErr("");
+    if(!tx.amount||!tx.description) return;
     onSave(tx);
   };
 
@@ -298,121 +284,10 @@ function TransactionForm({accounts, expGroups, incGroups, onSave, onCancel}) {
           </div>
         </div>
       )}
-      {saveErr&&<div style={{fontSize:"12px",color:"#ef4444",marginBottom:"8px",fontWeight:"600"}}>{saveErr}</div>}
       <div style={{display:"flex",gap:"8px"}}>
         <button style={btn()} onClick={save}>Guardar</button>
         <button style={btn("#1a3454","#94a3b8")} onClick={onCancel}>Cancelar</button>
       </div>
-    </div>
-  );
-}
-
-// ── CATEGORY MANAGER ─────────────────────────────────────────────────────────
-function CatManager({expCats, incCats, setExpCats, setIncCats, s, T}) {
-  const [tab,      setTab]      = useState("expense");
-  const [newGroup, setNewGroup] = useState("");
-  const [newItem,  setNewItem]  = useState({group:"", value:""});
-  const [editItem, setEditItem] = useState(null);
-  const [editVal,  setEditVal]  = useState("");
-
-  const groups   = tab==="expense" ? expCats : incCats;
-  const setGroups= tab==="expense" ? setExpCats : setIncCats;
-
-  const addGroup = () => { if(!newGroup.trim())return; setGroups(p=>[...p,{group:newGroup.trim(),icon:"📦",items:[]}]); setNewGroup(""); };
-  const delGroup = g => setGroups(p=>p.filter(x=>x.group!==g));
-  const addItem  = g => { if(!newItem.value.trim()||newItem.group!==g)return; setGroups(p=>p.map(x=>x.group===g?{...x,items:[...x.items,newItem.value.trim()]}:x)); setNewItem({group:"",value:""}); };
-  const delItem  = (g,item) => setGroups(p=>p.map(x=>x.group===g?{...x,items:x.items.filter(i=>i!==item)}:x));
-  const saveEdit = () => { if(!editVal.trim())return; setGroups(p=>p.map(x=>x.group===editItem.g?{...x,items:x.items.map(i=>i===editItem.item?editVal.trim():i)}:x)); setEditItem(null); };
-
-  const inp = {...s.input, marginBottom:"8px", fontSize:"14px"};
-
-  return (
-    <div>
-      <div style={{display:"flex",gap:"8px",marginBottom:"12px"}}>
-        {["expense","income"].map(t=>(
-          <button key={t} onClick={()=>setTab(t)} style={{padding:"7px 16px",borderRadius:"18px",border:`1px solid ${tab===t?T.accent:T.border}`,background:tab===t?T.accent:"transparent",color:tab===t?"#000":T.muted,fontSize:"12px",fontWeight:"600",cursor:"pointer",fontFamily:"'Sora',sans-serif"}}>
-            {t==="expense"?"💸 Gastos":"💰 Ingresos"}
-          </button>
-        ))}
-      </div>
-
-      <div style={{display:"flex",gap:"8px",marginBottom:"12px"}}>
-        <input style={{...inp,flex:1,marginBottom:0}} placeholder="Nuevo grupo..." value={newGroup} onChange={e=>setNewGroup(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addGroup()}/>
-        <button onClick={addGroup} style={{background:"#3b82f6",color:"#fff",border:"none",borderRadius:"9px",padding:"10px 14px",fontSize:"13px",fontWeight:"700",cursor:"pointer"}}>+ Grupo</button>
-      </div>
-
-      {groups.map(g=>(
-        <div key={g.group} style={{...s.card,marginBottom:"8px",borderLeft:`3px solid ${T.accent}`}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}}>
-            <div style={{fontSize:"13px",fontWeight:"700",color:T.text}}>{g.icon} {g.group}</div>
-            <button onClick={()=>delGroup(g.group)} style={{background:"transparent",border:"none",cursor:"pointer",fontSize:"12px",color:"#ef4444"}}>🗑️ grupo</button>
-          </div>
-          {g.items.map(item=>(
-            <div key={item} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"5px 0 5px 10px",borderBottom:`1px solid ${T.border}33`}}>
-              {editItem?.g===g.group&&editItem?.item===item ? (
-                <div style={{display:"flex",gap:"6px",flex:1,marginRight:"8px"}}>
-                  <input style={{...inp,flex:1,padding:"5px 10px",marginBottom:0}} value={editVal} onChange={e=>setEditVal(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveEdit()} autoFocus/>
-                  <button onClick={saveEdit} style={{background:T.accent,color:"#000",border:"none",borderRadius:"6px",padding:"5px 10px",cursor:"pointer",fontSize:"12px",fontWeight:"700"}}>✓</button>
-                </div>
-              ) : (
-                <span style={{fontSize:"12px",color:T.muted}}>• {item}</span>
-              )}
-              {!(editItem?.g===g.group&&editItem?.item===item)&&(
-                <div style={{display:"flex",gap:"4px"}}>
-                  <button onClick={()=>{setEditItem({g:g.group,item});setEditVal(item);}} style={{background:"transparent",border:"none",cursor:"pointer",fontSize:"11px",color:T.muted}}>✏️</button>
-                  <button onClick={()=>delItem(g.group,item)} style={{background:"transparent",border:"none",cursor:"pointer",fontSize:"11px",color:"#ef4444"}}>🗑️</button>
-                </div>
-              )}
-            </div>
-          ))}
-          <div style={{display:"flex",gap:"6px",marginTop:"8px"}}>
-            <input style={{...inp,flex:1,padding:"7px 10px",fontSize:"12px",marginBottom:0}}
-              placeholder={`+ Subcategoría en ${g.group}`}
-              value={newItem.group===g.group?newItem.value:""}
-              onChange={e=>setNewItem({group:g.group,value:e.target.value})}
-              onKeyDown={e=>e.key==="Enter"&&addItem(g.group)}/>
-            <button onClick={()=>addItem(g.group)} style={{background:`${T.accent}33`,color:T.accent,border:`1px solid ${T.accent}55`,borderRadius:"7px",padding:"7px 12px",cursor:"pointer",fontSize:"12px",fontWeight:"700"}}>+</button>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── BUDGET ROW — standalone para evitar pérdida de foco ─────────────────────
-function BudgetRow({cat, spent, limit, pct, onLimitChange, s, T}) {
-  return (
-    <div style={s.card}>
-      <div style={{display:"flex",justifyContent:"space-between",marginBottom:"5px"}}>
-        <span style={{fontSize:"13px",fontWeight:"500",color:T.text}}>{cat}</span>
-        <span style={{fontSize:"12px",fontWeight:"700",color:pct>90?"#ef4444":pct>70?"#f59e0b":T.accent}}>{Math.round(pct)}%</span>
-      </div>
-      <div style={{background:T.border,borderRadius:"4px",height:"5px",marginBottom:"7px"}}>
-        <div style={{background:pct>90?"#ef4444":pct>70?"#f59e0b":T.accent,height:"100%",borderRadius:"4px",width:pct+"%"}}/>
-      </div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <span style={{fontSize:"11px",color:T.muted}}>{new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",minimumFractionDigits:0}).format(spent)}</span>
-        <div style={{display:"flex",alignItems:"center",gap:"6px"}}>
-          <span style={{fontSize:"11px",color:T.muted}}>Límite:</span>
-          <NumInput value={limit} onChange={onLimitChange} style={{...s.input,width:"100px",padding:"4px 8px",fontSize:"12px",textAlign:"right"}}/>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── BUDGET VIEW — standalone para evitar pérdida de foco ─────────────────────
-function BudgetView({budgetRows, setBudget, accent, thisMonth, s, T}) {
-  return (
-    <div>
-      <div style={{...s.card,background:T.card,border:`1px solid ${T.accent}33`}}>
-        <div style={{fontSize:"13px",color:T.accent,fontWeight:"600"}}>🎯 Presupuesto — {thisMonth()}</div>
-      </div>
-      {budgetRows.map(({cat,spent,limit,pct})=>(
-        <BudgetRow key={cat} cat={cat} spent={spent} limit={limit} pct={pct}
-          onLimitChange={v=>setBudget(p=>({...p,[cat]:v}))}
-          s={s} T={T}/>
-      ))}
     </div>
   );
 }
@@ -459,14 +334,8 @@ export default function App() {
   const [ready,        setReady]        = useState(false);
   const [showForm,     setShowForm]     = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
-  const [showQuickAdd, setShowQuickAdd] = useState(false);
-  const [themeName,    setThemeName]    = useState("oscuro");
-  const T = THEMES[themeName] || THEMES.oscuro;
   const [editingTx,    setEditingTx]    = useState(null);
-  const [loans, setLoans] = useState([]);
-  const [showLoanForm, setShowLoanForm] = useState(false);
   const [showDebtForm, setShowDebtForm] = useState(false);
-  const [newLoan, setNewLoan] = useState({name:"",account:"finandina",amount:"",remaining:"",description:"",date:today(),dueDate:"",color:"#3b82f6"});
   const [editingDebt,  setEditingDebt]  = useState(null);
   const [payingDebt,   setPayingDebt]   = useState(null);
   const [showAccForm,  setShowAccForm]  = useState(false);
@@ -495,31 +364,11 @@ export default function App() {
       if (d) {
         if(d.transactions?.length)setTransactions(d.transactions);
         if(d.budget)setBudget(d.budget);
-        if(d.debts?.length)setDebts(d.debts.map(debt=>({
-          ...debt,
-          type: debt.type || "capital_interes",
-          rate: debt.rate || 0,
-          dueDay: debt.dueDay || null,
-        })));
-        if(d.loans?.length)setLoans(d.loans.map(l=>({...l, color:l.color||"#3b82f6", remaining:l.remaining??l.amount})));
+        if(d.debts?.length)setDebts(d.debts);
         if(d.accounts?.length)setAccounts(d.accounts);
+        if(d.expCats?.length)setExpCats(d.expCats);
+        if(d.incCats?.length)setIncCats(d.incCats);
         if(d.savingsGoal)setSavingsGoal(d.savingsGoal);
-        if(d.themeName)setThemeName(d.themeName);
-        // Migrate: if cats are flat arrays (old format), use defaults
-        if(d.expCats?.length) {
-          if(typeof d.expCats[0]==="string") {
-            // Old flat format — keep defaults (grouped)
-          } else {
-            setExpCats(d.expCats);
-          }
-        }
-        if(d.incCats?.length) {
-          if(typeof d.incCats[0]==="string") {
-            // Old flat format — keep defaults (grouped)
-          } else {
-            setIncCats(d.incCats);
-          }
-        }
       }
       setReady(true);
     })();
@@ -527,10 +376,10 @@ export default function App() {
 
   useEffect(()=>{
     if(!ready)return;
-    const data = {transactions,budget,debts,loans,accounts,expCats,incCats,savingsGoal,themeName};
+    const data = {transactions,budget,debts,accounts,expCats,incCats,savingsGoal};
     fbSave(data);
     (async()=>{try{await window.storage.set("finanzas_v7",JSON.stringify(data));}catch{}})();
-  },[transactions,budget,debts,loans,accounts,expCats,incCats,savingsGoal,themeName,ready]);
+  },[transactions,budget,debts,accounts,expCats,incCats,savingsGoal,ready]);
 
   // ── DERIVED ─────────────────────────────────────────────────────────────────
   const filtered   = filterUser==="Todos"?transactions:transactions.filter(t=>t.user===filterUser);
@@ -653,32 +502,6 @@ export default function App() {
     setPayingDebt(null);
   };
   const deleteDebt=id=>{saveHistory("Deuda eliminada");setDebts(p=>p.filter(d=>d.id!==id));};
-
-  const addLoan = () => {
-    if(!newLoan.name||!newLoan.amount)return;
-    const amount = parseInt(newLoan.amount)||0;
-    setLoans(p=>[...p,{...newLoan,id:Date.now(),amount,remaining:amount}]);
-    // Registra como gasto desde la cuenta
-    setTransactions(p=>[{id:Date.now()+1,user:"Rafael",account:newLoan.account,type:"expense",
-      category:"Préstamos / Cuotas",description:`Préstamo a ${newLoan.name}`,amount,date:newLoan.date},...p]);
-    setNewLoan({name:"",account:"finandina",amount:"",remaining:"",description:"",date:today(),dueDate:"",color:"#3b82f6"});
-    setShowLoanForm(false);
-  };
-
-  const collectLoan = (id, partialAmount) => {
-    const loan = loans.find(l=>l.id===id);
-    if(!loan) return;
-    const pmt = partialAmount || loan.remaining;
-    setLoans(p=>p.map(l=>l.id===id?{...l,remaining:Math.max(0,l.remaining-pmt)}:l));
-    setTransactions(p=>[{id:Date.now(),user:"Rafael",account:loan.account,type:"income",
-      category:"Reembolso",description:`Cobro préstamo: ${loan.name}`,amount:pmt,date:today()},...p]);
-  };
-
-  const deleteLoan = id => {saveHistory("Préstamo eliminado"); setLoans(p=>p.filter(l=>l.id!==id));};
-
-  const totalLoaned    = loans.reduce((s,l)=>s+l.amount,0);
-  const totalPending   = loans.reduce((s,l)=>s+l.remaining,0);
-  const totalRecovered = totalLoaned - totalPending;
   const saveDebtEdit=()=>{
     if(!editingDebt.name)return;
     setDebts(p=>p.map(d=>d.id===editingDebt.id?{...editingDebt,monthly:parseInt(editingDebt.monthly)||0,remaining:parseInt(editingDebt.remaining)||0,total:parseInt(editingDebt.total)||0}:d));
@@ -697,7 +520,7 @@ export default function App() {
     setChatMsgs(p=>[...p,{role:"user",content:msg}]);setChatLoading(true);
     const ctx=`Cuentas: ${JSON.stringify(accBalances.map(a=>({cuenta:a.name,saldo:fmt(a.balance)})))} | Total disponible: ${fmt(totalBalance)} | Ingresos mes: ${fmt(income)} | Gastos mes: ${fmt(expense)} | Deuda total: ${fmt(totalDebt)} | Cuotas/mes: ${fmt(totalMonthly)} | Deudas: ${JSON.stringify(debts.map(d=>({n:d.name,s:fmt(d.remaining),c:fmt(d.monthly)})))} | Top gastos: ${JSON.stringify(catData.slice(0,6).map(d=>({cat:d.name,monto:fmt(d.value)})))}`;
     try{
-      const res=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:1000,system:`Eres asesor financiero personal de Rafael, colombiano. Datos en tiempo real:\n${ctx}\nResponde en español, conciso y práctico. Montos en COP.`,messages:[...chatMsgs.slice(1).map(m=>({role:m.role,content:m.content})),{role:"user",content:msg}]})});
+      const res=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:`Eres asesor financiero personal de Rafael, colombiano. Datos en tiempo real:\n${ctx}\nResponde en español, conciso y práctico. Montos en COP.`,messages:[...chatMsgs.slice(1).map(m=>({role:m.role,content:m.content})),{role:"user",content:msg}]})});
       if(!res.ok){const e=await res.json();setChatMsgs(p=>[...p,{role:"assistant",content:`Error: ${e.error||res.status}`}]);setChatLoading(false);return;}
       const data=await res.json();
       setChatMsgs(p=>[...p,{role:"assistant",content:data.content?.[0]?.text||"Error."}]);
@@ -707,40 +530,27 @@ export default function App() {
 
   // ── STYLES ───────────────────────────────────────────────────────────────────
   const s={
-    root:    {fontFamily:"'Sora',sans-serif",background:T.bg,minHeight:"100vh",color:T.text},
-    header:  {background:`linear-gradient(135deg,${T.header},${T.card})`,borderBottom:`1px solid ${T.border}88`,padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100},
-    nav:     {display:"flex",gap:"4px",padding:"10px 14px",background:T.nav,borderBottom:`1px solid ${T.border}66`,overflowX:"auto"},
-    navBtn:  a=>({padding:"7px 13px",borderRadius:"18px",border:"none",cursor:"pointer",fontSize:"12px",fontWeight:a?"600":"400",fontFamily:"'Sora',sans-serif",background:a?T.accent:"transparent",color:a?"#000":T.muted,whiteSpace:"nowrap"}),
+    root:    {fontFamily:"'Sora',sans-serif",background:"#060d1c",minHeight:"100vh",color:"#e2e8f0"},
+    header:  {background:"linear-gradient(135deg,#0a1628,#0d1f3c)",borderBottom:"1px solid #1e3a5f55",padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100},
+    nav:     {display:"flex",gap:"4px",padding:"10px 14px",background:"#08111f",borderBottom:"1px solid #1e3a5f44",overflowX:"auto"},
+    navBtn:  a=>({padding:"7px 13px",borderRadius:"18px",border:"none",cursor:"pointer",fontSize:"12px",fontWeight:a?"600":"400",fontFamily:"'Sora',sans-serif",background:a?"#10b981":"transparent",color:a?"#000":"#64748b",whiteSpace:"nowrap"}),
     page:    {padding:"14px",maxWidth:"680px",margin:"0 auto"},
-    card:    {background:T.card,border:`1px solid ${T.border}`,borderRadius:"14px",padding:"14px",marginBottom:"10px"},
-    label:   {fontSize:"10px",color:T.muted,textTransform:"uppercase",letterSpacing:"1.2px",marginBottom:"3px",fontWeight:"600"},
+    card:    {background:"#0b1930",border:"1px solid #1a3454",borderRadius:"14px",padding:"14px",marginBottom:"10px"},
+    label:   {fontSize:"10px",color:"#476282",textTransform:"uppercase",letterSpacing:"1.2px",marginBottom:"3px",fontWeight:"600"},
     bigNum:  {fontSize:"22px",fontWeight:"800",letterSpacing:"-1px"},
-    secTitle:{fontSize:"11px",fontWeight:"700",color:T.muted,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"10px"},
-    input:   {width:"100%",background:T.input,border:`1px solid ${T.border}`,borderRadius:"9px",padding:"10px 12px",color:T.text,fontSize:"13px",fontFamily:"'Sora',sans-serif",outline:"none",boxSizing:"border-box"},
-    select:  {width:"100%",background:T.input,border:`1px solid ${T.border}`,borderRadius:"9px",padding:"10px 12px",color:T.text,fontSize:"13px",fontFamily:"'Sora',sans-serif",outline:"none",boxSizing:"border-box"},
-    btn:     (bg,tc="#000")=>({background:bg||T.accent,color:tc,border:"none",borderRadius:"9px",padding:"9px 18px",fontSize:"13px",fontWeight:"600",cursor:"pointer",fontFamily:"'Sora',sans-serif"}),
+    secTitle:{fontSize:"11px",fontWeight:"700",color:"#476282",textTransform:"uppercase",letterSpacing:"1px",marginBottom:"10px"},
+    input:   {width:"100%",background:"#08111f",border:"1px solid #1e3a5f",borderRadius:"9px",padding:"10px 12px",color:"#e2e8f0",fontSize:"13px",fontFamily:"'Sora',sans-serif",outline:"none",boxSizing:"border-box"},
+    select:  {width:"100%",background:"#08111f",border:"1px solid #1e3a5f",borderRadius:"9px",padding:"10px 12px",color:"#e2e8f0",fontSize:"13px",fontFamily:"'Sora',sans-serif",outline:"none",boxSizing:"border-box"},
+    btn:     (bg="#10b981",tc="#000")=>({background:bg,color:tc,border:"none",borderRadius:"9px",padding:"9px 18px",fontSize:"13px",fontWeight:"600",cursor:"pointer",fontFamily:"'Sora',sans-serif"}),
     fRow:    {display:"flex",gap:"6px",marginBottom:"12px",flexWrap:"wrap"},
-    fBtn:    a=>({padding:"5px 13px",borderRadius:"18px",border:`1px solid ${a?T.accent:T.border}`,cursor:"pointer",fontSize:"11px",fontWeight:"500",fontFamily:"'Sora',sans-serif",background:a?T.accent:"transparent",color:a?"#000":T.muted}),
-    txRow:   {display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",borderBottom:`1px solid ${T.border}44`},
-    bubble:  u=>({maxWidth:"84%",padding:"10px 14px",borderRadius:u?"16px 16px 3px 16px":"16px 16px 16px 3px",background:u?T.accent:T.bubble,color:u?"#000":T.text,fontSize:"13px",lineHeight:"1.55",marginBottom:"6px",alignSelf:u?"flex-end":"flex-start",border:u?"none":`1px solid ${T.border}`}),
+    fBtn:    a=>({padding:"5px 13px",borderRadius:"18px",border:`1px solid ${a?"#10b981":"#1e3a5f"}`,cursor:"pointer",fontSize:"11px",fontWeight:"500",fontFamily:"'Sora',sans-serif",background:a?"#10b981":"transparent",color:a?"#000":"#64748b"}),
+    txRow:   {display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid #1a345422"},
+    bubble:  u=>({maxWidth:"84%",padding:"10px 14px",borderRadius:u?"16px 16px 3px 16px":"16px 16px 16px 3px",background:u?"#10b981":"#0b1930",color:u?"#000":"#e2e8f0",fontSize:"13px",lineHeight:"1.55",marginBottom:"6px",alignSelf:u?"flex-end":"flex-start",border:u?"none":"1px solid #1a3454"}),
   };
 
   // ── VIEWS ────────────────────────────────────────────────────────────────────
   const Dashboard=()=>(
-    <div style={{paddingBottom:"80px"}}>
-      {/* Quick Add FAB */}
-      <div style={{position:"fixed",bottom:"24px",right:"20px",zIndex:150}}>
-        {showQuickAdd&&(
-          <div style={{position:"absolute",bottom:"60px",right:0,background:"#0b1930",border:"1px solid #1a3454",borderRadius:"14px",padding:"10px",minWidth:"160px",boxShadow:"0 8px 32px #00000088"}}>
-            <button onClick={()=>{setShowQuickAdd(false);setView("transactions");setTimeout(()=>setShowForm(true),100);}} style={{display:"block",width:"100%",background:"transparent",border:"none",color:"#e2e8f0",padding:"10px 14px",textAlign:"left",cursor:"pointer",fontSize:"14px",fontFamily:"'Sora',sans-serif",borderRadius:"8px"}}>💸 Nuevo gasto</button>
-            <button onClick={()=>{setShowQuickAdd(false);setView("transactions");setTimeout(()=>setShowForm(true),100);}} style={{display:"block",width:"100%",background:"transparent",border:"none",color:"#e2e8f0",padding:"10px 14px",textAlign:"left",cursor:"pointer",fontSize:"14px",fontFamily:"'Sora',sans-serif",borderRadius:"8px"}}>💰 Nuevo ingreso</button>
-            <button onClick={()=>{setShowQuickAdd(false);setView("transactions");setTimeout(()=>setShowTransfer(true),100);}} style={{display:"block",width:"100%",background:"transparent",border:"none",color:"#3b82f6",padding:"10px 14px",textAlign:"left",cursor:"pointer",fontSize:"14px",fontFamily:"'Sora',sans-serif",borderRadius:"8px"}}>🔄 Transferencia</button>
-          </div>
-        )}
-        <button onClick={()=>setShowQuickAdd(f=>!f)} style={{width:"54px",height:"54px",borderRadius:"50%",background:"#10b981",border:"none",color:"#000",fontSize:"26px",cursor:"pointer",boxShadow:"0 4px 20px #10b98166",display:"flex",alignItems:"center",justifyContent:"center"}}>
-          {showQuickAdd?"✕":"+"}
-        </button>
-      </div>
+    <div>
       <div style={s.fRow}>
         {["Todos","Rafael","Pareja"].map(u=><button key={u} style={s.fBtn(filterUser===u)} onClick={()=>setFilterUser(u)}>{u}</button>)}
       </div>
@@ -1030,283 +840,258 @@ export default function App() {
     </div>
   );
 
+  const Presupuesto=()=>(
+    <div>
+      <div style={{...s.card,background:"#071a12",border:"1px solid #10b98133"}}>
+        <div style={{fontSize:"13px",color:"#10b981",fontWeight:"600"}}>🎯 Presupuesto — {thisMonth()}</div>
+      </div>
+      {budgetRows.map(({cat,spent,limit,pct})=>(
+        <div key={cat} style={s.card}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:"5px"}}>
+            <span style={{fontSize:"13px",fontWeight:"500"}}>{cat}</span>
+            <span style={{fontSize:"12px",fontWeight:"700",color:pct>90?"#ef4444":pct>70?"#f59e0b":"#10b981"}}>{Math.round(pct)}%</span>
+          </div>
+          <div style={{background:"#1a3454",borderRadius:"4px",height:"5px",marginBottom:"7px"}}>
+            <div style={{background:pct>90?"#ef4444":pct>70?"#f59e0b":"#10b981",height:"100%",borderRadius:"4px",width:pct+"%"}}/>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{fontSize:"11px",color:"#476282"}}>{fmt(spent)}</span>
+            <div style={{display:"flex",alignItems:"center",gap:"6px"}}>
+              <span style={{fontSize:"11px",color:"#476282"}}>Límite:</span>
+              <NumInput value={limit} onChange={v=>setBudget(p=>({...p,[cat]:v}))} style={{...s.input,width:"100px",padding:"4px 8px",fontSize:"12px",textAlign:"right"}}/>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
   const DEBT_TYPE_LABELS = {
     "solo_interes":    {label:"Solo interés",    color:"#f59e0b", desc:"Capital no baja"},
     "capital_interes": {label:"Capital + Interés",color:"#3b82f6", desc:"Cuota cubre ambos"},
     "solo_capital":    {label:"Solo capital",    color:"#10b981", desc:"Sin interés"},
   };
 
-  const [debtTab, setDebtTab] = useState("deudas");
-
   const Deudas=()=>{
     const inp = {...s.input, marginBottom:"8px"};
-    const COLORS = ["#ef4444","#f97316","#f59e0b","#10b981","#3b82f6","#8b5cf6","#ec4899"];
-    return(
-      <div>
-        {/* ── Tab toggle ── */}
-        <div style={{display:"flex",gap:"8px",marginBottom:"12px"}}>
-          <button onClick={()=>setDebtTab("deudas")} style={{flex:1,padding:"10px",borderRadius:"10px",border:`1px solid ${debtTab==="deudas"?"#ef4444":T.border}`,background:debtTab==="deudas"?"#ef444422":"transparent",color:debtTab==="deudas"?"#ef4444":T.muted,fontSize:"13px",fontWeight:"700",cursor:"pointer",fontFamily:"'Sora',sans-serif"}}>🔴 Lo que debo</button>
-          <button onClick={()=>setDebtTab("prestamos")} style={{flex:1,padding:"10px",borderRadius:"10px",border:`1px solid ${debtTab==="prestamos"?"#10b981":T.border}`,background:debtTab==="prestamos"?"#10b98122":"transparent",color:debtTab==="prestamos"?"#10b981":T.muted,fontSize:"13px",fontWeight:"700",cursor:"pointer",fontFamily:"'Sora',sans-serif"}}>💚 Lo que me deben</button>
-        </div>
+    const colors = ["#ef4444","#f97316","#f59e0b","#10b981","#3b82f6","#8b5cf6","#ec4899"];
 
-        {/* ── PRÉSTAMOS ── */}
-        {debtTab==="prestamos"&&<div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px",marginBottom:"10px"}}>
-            <div style={{...s.card,background:"#071a12",border:"1px solid #10b98133"}}>
-              <div style={s.label}>Prestado</div>
-              <div style={{fontSize:"14px",fontWeight:"800",color:"#10b981"}}>{fmt(totalLoaned)}</div>
+    return(
+    <div>
+      {/* ── Payment Dialog ──────────────────────────────────────────── */}
+      {payingDebt&&(
+        <div style={{position:"fixed",inset:0,background:"#000000cc",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}}>
+          <div style={{...s.card,width:"100%",maxWidth:"400px",border:`1px solid ${payingDebt.color}55`}}>
+            <div style={{fontSize:"15px",fontWeight:"800",color:payingDebt.color,marginBottom:"4px"}}>💳 Registrar pago</div>
+            <div style={{fontSize:"12px",color:"#476282",marginBottom:"14px"}}>{payingDebt.name} · Capital pendiente: {fmt(payingDebt.remaining)}</div>
+
+            {/* Info chips */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"6px",marginBottom:"14px"}}>
+              <div style={{background:"#08111f",borderRadius:"8px",padding:"7px",textAlign:"center"}}>
+                <div style={{fontSize:"9px",color:"#476282"}}>Cuota</div>
+                <div style={{fontSize:"12px",fontWeight:"700",color:"#e2e8f0"}}>{fmt(payingDebt.monthly)}</div>
+              </div>
+              <div style={{background:"#1a0f00",borderRadius:"8px",padding:"7px",textAlign:"center"}}>
+                <div style={{fontSize:"9px",color:"#476282"}}>Interés</div>
+                <div style={{fontSize:"12px",fontWeight:"700",color:"#f59e0b"}}>{fmt(payingDebt.interestAmt)}</div>
+              </div>
+              <div style={{background:"#071a12",borderRadius:"8px",padding:"7px",textAlign:"center"}}>
+                <div style={{fontSize:"9px",color:"#476282"}}>A capital</div>
+                <div style={{fontSize:"12px",fontWeight:"700",color:"#10b981"}}>{fmt(payingDebt.payType==="ambos"?Math.max(0,(parseInt(payingDebt.customAmount)||0)-payingDebt.interestAmt):payingDebt.payType==="capital"||payingDebt.payType==="abono"?(parseInt(payingDebt.customAmount)||0):0)}</div>
+              </div>
             </div>
-            <div style={{...s.card,background:"#1a0808",border:"1px solid #ef444433"}}>
-              <div style={s.label}>Pendiente</div>
-              <div style={{fontSize:"14px",fontWeight:"800",color:"#ef4444"}}>{fmt(totalPending)}</div>
+
+            {/* Payment type */}
+            <div style={{fontSize:"11px",color:"#476282",marginBottom:"6px",fontWeight:"600",textTransform:"uppercase",letterSpacing:"1px"}}>Tipo de pago</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px",marginBottom:"12px"}}>
+              {[
+                {key:"ambos",   label:"💳 Capital + Interés", amount: payingDebt.monthly},
+                {key:"interes", label:"📊 Solo Interés",       amount: payingDebt.interestAmt},
+                {key:"capital", label:"🏦 Solo Capital",       amount: payingDebt.capitalAmt},
+                {key:"abono",   label:"💰 Abono libre",        amount: null},
+              ].map(opt=>(
+                <div key={opt.key} onClick={()=>setPayingDebt(p=>({...p, payType:opt.key, customAmount: opt.amount||p.customAmount}))}
+                  style={{padding:"8px 10px",borderRadius:"9px",border:`1px solid ${payingDebt.payType===opt.key?payingDebt.color:"#1e3a5f"}`,background:payingDebt.payType===opt.key?payingDebt.color+"22":"transparent",cursor:"pointer"}}>
+                  <div style={{fontSize:"12px",fontWeight:"600",color:payingDebt.payType===opt.key?payingDebt.color:"#94a3b8"}}>{opt.label}</div>
+                  {opt.amount!=null&&<div style={{fontSize:"10px",color:"#476282",marginTop:"2px"}}>{fmt(opt.amount)}</div>}
+                </div>
+              ))}
             </div>
-            <div style={{...s.card,background:"#071a30",border:"1px solid #3b82f633"}}>
-              <div style={s.label}>Recuperado</div>
-              <div style={{fontSize:"14px",fontWeight:"800",color:"#3b82f6"}}>{fmt(totalRecovered)}</div>
-            </div>
-          </div>
-          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:"10px"}}>
-            <button style={s.btn()} onClick={()=>setShowLoanForm(f=>!f)}>+ Nuevo préstamo</button>
-          </div>
-          {showLoanForm&&<div style={{...s.card,marginBottom:"10px",border:"1px solid #10b98133"}}>
-            <div style={{fontSize:"13px",fontWeight:"700",color:"#10b981",marginBottom:"10px"}}>💚 Registrar préstamo</div>
-            <input style={{...s.input,marginBottom:"8px"}} placeholder="¿A quién le prestas?" value={newLoan.name} onChange={e=>setNewLoan(p=>({...p,name:e.target.value}))}/>
-            <select style={{...s.select,marginBottom:"8px"}} value={newLoan.account} onChange={e=>setNewLoan(p=>({...p,account:e.target.value}))}>
+
+            {/* Amount */}
+            <div style={{fontSize:"11px",color:"#476282",marginBottom:"6px",fontWeight:"600",textTransform:"uppercase",letterSpacing:"1px"}}>Monto a pagar</div>
+            <NumInput style={{...s.input,marginBottom:"8px",fontSize:"18px",fontWeight:"700"}}
+              placeholder="Monto" value={payingDebt.customAmount}
+              onChange={v=>setPayingDebt(p=>({...p,customAmount:v}))}/>
+
+            {/* Account */}
+            <select style={{...s.select,marginBottom:"14px"}} value={payingDebt.account||"finandina"} onChange={e=>setPayingDebt(p=>({...p,account:e.target.value}))}>
               {accounts.map(a=><option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
             </select>
-            <NumInput style={{...s.input,marginBottom:"8px"}} placeholder="Monto prestado" value={newLoan.amount} onChange={v=>setNewLoan(p=>({...p,amount:v}))}/>
-            <input style={{...s.input,marginBottom:"8px"}} placeholder="Descripción (opcional)" value={newLoan.description} onChange={e=>setNewLoan(p=>({...p,description:e.target.value}))}/>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"8px"}}>
-              <div>
-                <div style={{fontSize:"10px",color:T.muted,marginBottom:"4px"}}>FECHA PRÉSTAMO</div>
-                <CalendarPicker value={newLoan.date} onChange={d=>setNewLoan(p=>({...p,date:d}))}/>
+
+            {/* New remaining preview */}
+            {payingDebt.payType!=="interes"&&(
+              <div style={{background:"#071a12",border:"1px solid #10b98133",borderRadius:"8px",padding:"8px",marginBottom:"12px",textAlign:"center"}}>
+                <div style={{fontSize:"11px",color:"#476282"}}>Capital restante después del pago</div>
+                <div style={{fontSize:"16px",fontWeight:"800",color:"#10b981"}}>
+                  {fmt(Math.max(0, payingDebt.remaining - (
+                    payingDebt.payType==="capital"||payingDebt.payType==="abono"
+                      ? (parseInt(payingDebt.customAmount)||0)
+                      : Math.max(0,(parseInt(payingDebt.customAmount)||0)-payingDebt.interestAmt)
+                  )))}
+                </div>
               </div>
-              <div>
-                <div style={{fontSize:"10px",color:T.muted,marginBottom:"4px"}}>FECHA PAGO ESPERADA</div>
-                <CalendarPicker value={newLoan.dueDate} onChange={d=>setNewLoan(p=>({...p,dueDate:d}))}/>
-              </div>
-            </div>
-            <div style={{display:"flex",gap:"6px",marginBottom:"10px"}}>
-              {COLORS.map(c=><div key={c} onClick={()=>setNewLoan(p=>({...p,color:c}))} style={{width:"22px",height:"22px",borderRadius:"50%",background:c,cursor:"pointer",border:newLoan.color===c?"3px solid #fff":"3px solid transparent"}}/>)}
-            </div>
+            )}
+
             <div style={{display:"flex",gap:"8px"}}>
-              <button style={s.btn()} onClick={addLoan}>Guardar</button>
-              <button style={s.btn(T.card,T.muted)} onClick={()=>setShowLoanForm(false)}>Cancelar</button>
-            </div>
-          </div>}
-          {loans.length===0&&<div style={{...s.card,textAlign:"center",padding:"32px"}}>
-            <div style={{fontSize:"32px",marginBottom:"8px"}}>💚</div>
-            <div style={{fontSize:"14px",color:"#10b981",fontWeight:"600"}}>Sin préstamos registrados</div>
-            <div style={{fontSize:"12px",color:T.muted,marginTop:"4px"}}>Registra cuando prestes dinero a alguien</div>
-          </div>}
-          {loans.map(loan=>{
-            const pct = loan.amount>0?Math.round(((loan.amount-loan.remaining)/loan.amount)*100):0;
-            const overdue = loan.dueDate&&loan.remaining>0&&new Date(loan.dueDate)<new Date();
-            return(
-              <div key={loan.id} style={{...s.card,borderLeft:`3px solid ${loan.color||"#3b82f6"}`}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"8px"}}>
-                  <div>
-                    <div style={{fontSize:"14px",fontWeight:"700",color:loan.color||"#3b82f6"}}>{loan.name}</div>
-                    <div style={{fontSize:"11px",color:T.muted,marginTop:"2px"}}>{accounts.find(a=>a.id===loan.account)?.icon} {accounts.find(a=>a.id===loan.account)?.name}{loan.description&&` · ${loan.description}`}</div>
-                    {loan.dueDate&&<div style={{fontSize:"10px",color:overdue?"#ef4444":"#f59e0b",marginTop:"2px",fontWeight:"600"}}>{overdue?"⚠️ Vencido":"📅 Esperado"}: {loan.dueDate}</div>}
-                  </div>
-                  <div style={{textAlign:"right"}}>
-                    <div style={{fontSize:"16px",fontWeight:"800",color:loan.remaining===0?"#10b981":"#ef4444"}}>{fmt(loan.remaining)}</div>
-                    <div style={{fontSize:"10px",color:T.muted}}>pendiente</div>
-                  </div>
-                </div>
-                <div style={{background:T.border,borderRadius:"4px",height:"5px",marginBottom:"8px"}}>
-                  <div style={{background:loan.color||"#3b82f6",height:"100%",borderRadius:"4px",width:pct+"%"}}/>
-                </div>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:"11px",color:T.muted}}>{pct}% cobrado · {fmt(loan.amount)} prestado</span>
-                  <div style={{display:"flex",gap:"5px"}}>
-                    {loan.remaining>0&&<button onClick={()=>collectLoan(loan.id)} style={{...s.btn("#071a12"),color:"#10b981",border:"1px solid #10b98133",fontSize:"11px",padding:"4px 10px"}}>✓ Cobrar</button>}
-                    {loan.remaining===0&&<span style={{fontSize:"11px",color:"#10b981",fontWeight:"700"}}>🎉 ¡Cobrado!</span>}
-                    <button onClick={()=>deleteLoan(loan.id)} style={{background:"#2a1a1a",border:"none",borderRadius:"6px",padding:"4px 7px",cursor:"pointer",fontSize:"11px",color:"#ef4444"}}>🗑️</button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>}
-
-        {/* ── DEUDAS ── */}
-        {debtTab==="deudas"&&<div>
-          {/* Payment dialog */}
-          {payingDebt&&<div style={{position:"fixed",inset:0,background:"#000000cc",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}}>
-            <div style={{...s.card,width:"100%",maxWidth:"400px",border:`1px solid ${payingDebt.color}55`}}>
-              <div style={{fontSize:"15px",fontWeight:"800",color:payingDebt.color,marginBottom:"4px"}}>💳 Registrar pago</div>
-              <div style={{fontSize:"12px",color:T.muted,marginBottom:"14px"}}>{payingDebt.name} · Capital: {fmt(payingDebt.remaining)}</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"6px",marginBottom:"14px"}}>
-                <div style={{background:T.input,borderRadius:"8px",padding:"7px",textAlign:"center"}}>
-                  <div style={{fontSize:"9px",color:T.muted}}>Cuota</div>
-                  <div style={{fontSize:"12px",fontWeight:"700",color:T.text}}>{fmt(payingDebt.monthly)}</div>
-                </div>
-                <div style={{background:T.input,borderRadius:"8px",padding:"7px",textAlign:"center"}}>
-                  <div style={{fontSize:"9px",color:T.muted}}>Interés</div>
-                  <div style={{fontSize:"12px",fontWeight:"700",color:"#f59e0b"}}>{fmt(payingDebt.interestAmt)}</div>
-                </div>
-                <div style={{background:T.input,borderRadius:"8px",padding:"7px",textAlign:"center"}}>
-                  <div style={{fontSize:"9px",color:T.muted}}>A capital</div>
-                  <div style={{fontSize:"12px",fontWeight:"700",color:"#10b981"}}>{fmt(payingDebt.payType==="ambos"?Math.max(0,(parseInt(payingDebt.customAmount)||0)-payingDebt.interestAmt):payingDebt.payType==="capital"||payingDebt.payType==="abono"?(parseInt(payingDebt.customAmount)||0):0)}</div>
-                </div>
-              </div>
-              <div style={{fontSize:"11px",color:T.muted,marginBottom:"6px",fontWeight:"600",textTransform:"uppercase",letterSpacing:"1px"}}>Tipo de pago</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px",marginBottom:"12px"}}>
-                {[{key:"ambos",label:"💳 Capital + Interés",amount:payingDebt.monthly},{key:"interes",label:"📊 Solo Interés",amount:payingDebt.interestAmt},{key:"capital",label:"🏦 Solo Capital",amount:payingDebt.capitalAmt},{key:"abono",label:"💰 Abono libre",amount:null}].map(opt=>(
-                  <div key={opt.key} onClick={()=>setPayingDebt(p=>({...p,payType:opt.key,customAmount:opt.amount||p.customAmount}))} style={{padding:"8px 10px",borderRadius:"9px",border:`1px solid ${payingDebt.payType===opt.key?payingDebt.color:T.border}`,background:payingDebt.payType===opt.key?payingDebt.color+"22":"transparent",cursor:"pointer"}}>
-                    <div style={{fontSize:"12px",fontWeight:"600",color:payingDebt.payType===opt.key?payingDebt.color:T.muted}}>{opt.label}</div>
-                    {opt.amount!=null&&<div style={{fontSize:"10px",color:T.muted,marginTop:"2px"}}>{fmt(opt.amount)}</div>}
-                  </div>
-                ))}
-              </div>
-              <div style={{fontSize:"11px",color:T.muted,marginBottom:"6px",fontWeight:"600",textTransform:"uppercase",letterSpacing:"1px"}}>Monto a pagar</div>
-              <NumInput style={{...s.input,marginBottom:"8px",fontSize:"18px",fontWeight:"700"}} placeholder="Monto" value={payingDebt.customAmount} onChange={v=>setPayingDebt(p=>({...p,customAmount:v}))}/>
-              <select style={{...s.select,marginBottom:"14px"}} value={payingDebt.account||"finandina"} onChange={e=>setPayingDebt(p=>({...p,account:e.target.value}))}>
-                {accounts.map(a=><option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
-              </select>
-              {payingDebt.payType!=="interes"&&<div style={{background:T.input,border:`1px solid ${T.border}`,borderRadius:"8px",padding:"8px",marginBottom:"12px",textAlign:"center"}}>
-                <div style={{fontSize:"11px",color:T.muted}}>Capital restante después del pago</div>
-                <div style={{fontSize:"16px",fontWeight:"800",color:"#10b981"}}>{fmt(Math.max(0,payingDebt.remaining-(payingDebt.payType==="capital"||payingDebt.payType==="abono"?(parseInt(payingDebt.customAmount)||0):Math.max(0,(parseInt(payingDebt.customAmount)||0)-payingDebt.interestAmt))))}</div>
-              </div>}
-              <div style={{display:"flex",gap:"8px"}}>
-                <button style={s.btn()} onClick={processPayment}>✓ Confirmar pago</button>
-                <button style={s.btn("#1a3454","#94a3b8")} onClick={()=>setPayingDebt(null)}>Cancelar</button>
-              </div>
-            </div>
-          </div>}
-
-          {/* Edit modal */}
-          {editingDebt&&<div style={{position:"fixed",inset:0,background:"#000000bb",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",overflowY:"auto"}}>
-            <div style={{...s.card,width:"100%",maxWidth:"400px",border:`1px solid ${editingDebt.color}55`}}>
-              <div style={{fontSize:"14px",fontWeight:"700",color:editingDebt.color,marginBottom:"12px"}}>✏️ Editar deuda</div>
-              <input style={inp} placeholder="Nombre" value={editingDebt.name} onChange={e=>setEditingDebt(p=>({...p,name:e.target.value}))}/>
-              <select style={inp} value={editingDebt.type||"capital_interes"} onChange={e=>setEditingDebt(p=>({...p,type:e.target.value}))}>
-                <option value="capital_interes">Capital + Interés</option>
-                <option value="solo_interes">Solo Interés (capital no baja)</option>
-                <option value="solo_capital">Solo Capital (sin interés)</option>
-              </select>
-              <NumInput style={inp} placeholder="Capital pendiente" value={editingDebt.remaining} onChange={v=>setEditingDebt(p=>({...p,remaining:v}))}/>
-              <NumInput style={inp} placeholder="Cuota mensual" value={editingDebt.monthly} onChange={v=>setEditingDebt(p=>({...p,monthly:v}))}/>
-              {(editingDebt.type==="solo_interes"||editingDebt.type==="capital_interes")&&<input style={inp} type="text" inputMode="decimal" placeholder="Tasa de interés % mensual" value={editingDebt.rate||""} onChange={e=>setEditingDebt(p=>({...p,rate:parseFloat(e.target.value)||0}))}/>}
-              <input style={inp} type="text" inputMode="numeric" placeholder="Día de pago (ej: 5)" value={editingDebt.dueDay||""} onChange={e=>setEditingDebt(p=>({...p,dueDay:parseInt(e.target.value)||null}))}/>
-              <div style={{display:"flex",gap:"6px",marginBottom:"10px"}}>
-                {COLORS.map(c=><div key={c} onClick={()=>setEditingDebt(p=>({...p,color:c}))} style={{width:"22px",height:"22px",borderRadius:"50%",background:c,cursor:"pointer",border:editingDebt.color===c?"3px solid #fff":"3px solid transparent"}}/>)}
-              </div>
-              <div style={{display:"flex",gap:"8px"}}>
-                <button style={s.btn()} onClick={saveDebtEdit}>Guardar</button>
-                <button style={s.btn("#1a3454","#94a3b8")} onClick={()=>setEditingDebt(null)}>Cancelar</button>
-              </div>
-            </div>
-          </div>}
-
-          {/* Summary */}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"10px"}}>
-            <div style={{...s.card,background:"#1a0808",border:"1px solid #ef444433"}}>
-              <div style={s.label}>Deuda total</div>
-              <div style={{fontSize:"16px",fontWeight:"800",color:"#ef4444"}}>{fmt(totalDebt)}</div>
-            </div>
-            <div style={{...s.card,background:"#1a0f00",border:"1px solid #f59e0b33"}}>
-              <div style={s.label}>Cuotas/mes</div>
-              <div style={{fontSize:"16px",fontWeight:"800",color:"#f59e0b"}}>{fmt(totalMonthly)}</div>
+              <button style={s.btn()} onClick={processPayment}>✓ Confirmar pago</button>
+              <button style={s.btn("#1a3454","#94a3b8")} onClick={()=>setPayingDebt(null)}>Cancelar</button>
             </div>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"10px"}}>
-            <div style={{...s.card,background:"#1a0808",border:"1px solid #ef444433"}}>
-              <div style={s.label}>Personales</div>
-              <div style={{fontSize:"14px",fontWeight:"800",color:"#ef4444"}}>{fmt(debts.slice(0,10).reduce((sum,d)=>sum+d.remaining,0))}</div>
-            </div>
-            <div style={{...s.card,background:"#1a0f00",border:"1px solid #f59e0b33"}}>
-              <div style={s.label}>Créditos virtuales</div>
-              <div style={{fontSize:"14px",fontWeight:"800",color:"#f59e0b"}}>{fmt(debts.slice(10).reduce((sum,d)=>sum+d.remaining,0))}</div>
-            </div>
-          </div>
-
-          {totalMonthly>income&&<div style={{...s.card,background:"#1a0808",border:"1px solid #ef4444",marginBottom:"10px"}}>
-            <div style={{fontSize:"12px",color:"#ef4444",fontWeight:"700"}}>⚠️ Cuotas superan ingresos registrados</div>
-            <div style={{fontSize:"11px",color:"#94a3b8",marginTop:"3px"}}>Déficit: {fmt(totalMonthly-income)}</div>
-          </div>}
-
-          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:"10px"}}>
-            <button style={s.btn()} onClick={()=>setShowDebtForm(f=>!f)}>+ Nueva deuda</button>
-          </div>
-
-          {showDebtForm&&<div style={{...s.card,marginBottom:"10px",border:"1px solid #ef444433"}}>
-            <div style={{fontSize:"13px",fontWeight:"700",color:"#ef4444",marginBottom:"10px"}}>Nueva deuda</div>
-            <input style={inp} placeholder="Nombre" value={newDebt.name} onChange={e=>setNewDebt(p=>({...p,name:e.target.value}))}/>
-            <select style={inp} value={newDebt.type} onChange={e=>setNewDebt(p=>({...p,type:e.target.value}))}>
-              <option value="capital_interes">Capital + Interés</option>
+        </div>
+      )}
+      {/* Edit modal */}
+      {editingDebt&&(
+        <div style={{position:"fixed",inset:0,background:"#000000bb",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",overflowY:"auto"}}>
+          <div style={{...s.card,width:"100%",maxWidth:"400px",border:`1px solid ${editingDebt.color}55`}}>
+            <div style={{fontSize:"14px",fontWeight:"700",color:editingDebt.color,marginBottom:"12px"}}>✏️ Editar deuda</div>
+            <input style={inp} placeholder="Nombre" value={editingDebt.name} onChange={e=>setEditingDebt(p=>({...p,name:e.target.value}))}/>
+            <select style={inp} value={editingDebt.type||"capital_interes"} onChange={e=>setEditingDebt(p=>({...p,type:e.target.value}))}>
+              <option value="capital_interes">Capital + Interés (cuota incluye ambos)</option>
               <option value="solo_interes">Solo Interés (capital no baja)</option>
               <option value="solo_capital">Solo Capital (sin interés)</option>
             </select>
-            <NumInput style={inp} placeholder="Capital total" value={newDebt.total} onChange={v=>setNewDebt(p=>({...p,total:v,remaining:v}))}/>
-            <NumInput style={inp} placeholder="Saldo pendiente hoy" value={newDebt.remaining} onChange={v=>setNewDebt(p=>({...p,remaining:v}))}/>
-            <NumInput style={inp} placeholder="Cuota mensual" value={newDebt.monthly} onChange={v=>setNewDebt(p=>({...p,monthly:v}))}/>
-            {(newDebt.type==="solo_interes"||newDebt.type==="capital_interes")&&<input style={inp} type="text" inputMode="decimal" placeholder="Tasa % mensual (ej: 5)" value={newDebt.rate} onChange={e=>setNewDebt(p=>({...p,rate:e.target.value}))}/>}
-            <input style={inp} type="text" inputMode="numeric" placeholder="Día de pago (ej: 5)" value={newDebt.dueDay} onChange={e=>setNewDebt(p=>({...p,dueDay:e.target.value}))}/>
+            <NumInput style={inp} placeholder="Capital pendiente" value={editingDebt.remaining} onChange={v=>setEditingDebt(p=>({...p,remaining:v}))}/>
+            <NumInput style={inp} placeholder="Cuota mensual" value={editingDebt.monthly} onChange={v=>setEditingDebt(p=>({...p,monthly:v}))}/>
+            {(editingDebt.type==="solo_interes"||editingDebt.type==="capital_interes")&&(
+              <input style={{...inp,marginBottom:"8px"}} type="text" inputMode="decimal" placeholder="Tasa de interés % mensual (ej: 5, 7)" value={editingDebt.rate||""} onChange={e=>setEditingDebt(p=>({...p,rate:parseFloat(e.target.value)||0}))}/>
+            )}
+            <input style={inp} type="text" inputMode="numeric" placeholder="Día de pago del mes (ej: 5)" value={editingDebt.dueDay||""} onChange={e=>setEditingDebt(p=>({...p,dueDay:parseInt(e.target.value)||null}))}/>
             <div style={{display:"flex",gap:"6px",marginBottom:"10px"}}>
-              {COLORS.map(c=><div key={c} onClick={()=>setNewDebt(p=>({...p,color:c}))} style={{width:"22px",height:"22px",borderRadius:"50%",background:c,cursor:"pointer",border:newDebt.color===c?"3px solid #fff":"3px solid transparent"}}/>)}
+              {colors.map(c=><div key={c} onClick={()=>setEditingDebt(p=>({...p,color:c}))} style={{width:"22px",height:"22px",borderRadius:"50%",background:c,cursor:"pointer",border:editingDebt.color===c?"3px solid #fff":"3px solid transparent"}}/>)}
             </div>
             <div style={{display:"flex",gap:"8px"}}>
-              <button style={s.btn()} onClick={addDebt}>Guardar</button>
-              <button style={s.btn("#1a3454","#94a3b8")} onClick={()=>setShowDebtForm(false)}>Cancelar</button>
+              <button style={s.btn()} onClick={saveDebtEdit}>Guardar</button>
+              <button style={s.btn("#1a3454","#94a3b8")} onClick={()=>setEditingDebt(null)}>Cancelar</button>
             </div>
-          </div>}
+          </div>
+        </div>
+      )}
 
-          {debts.map(debt=>{
-            const pct = debt.total>0?Math.round(((debt.total-debt.remaining)/debt.total)*100):0;
-            const interestAmt = debt.rate>0?Math.round(debt.remaining*debt.rate/100):0;
-            const capitalAmt = debt.type==="solo_interes"?0:debt.type==="solo_capital"?debt.monthly:Math.max(0,debt.monthly-interestAmt);
-            const months = debt.type==="solo_interes"?"∞":capitalAmt>0?Math.ceil(debt.remaining/capitalAmt):"∞";
-            const typeInfo = DEBT_TYPE_LABELS[debt.type||"capital_interes"]||DEBT_TYPE_LABELS["capital_interes"];
-            return(
-              <div key={debt.id} style={{...s.card,borderLeft:`3px solid ${debt.color}`}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"6px"}}>
-                  <div>
-                    <div style={{fontSize:"14px",fontWeight:"700",color:debt.color}}>{debt.name}</div>
-                    <div style={{display:"flex",alignItems:"center",gap:"6px",marginTop:"2px"}}>
-                      <span style={{fontSize:"10px",background:typeInfo.color+"22",color:typeInfo.color,padding:"1px 6px",borderRadius:"8px",fontWeight:"600"}}>{typeInfo.label}</span>
-                      {debt.rate>0&&<span style={{fontSize:"10px",color:T.muted}}>{debt.rate}% mensual</span>}
-                      {debt.dueDay&&<span style={{fontSize:"10px",color:T.muted}}>Día {debt.dueDay}</span>}
-                    </div>
-                  </div>
-                  <div style={{textAlign:"right"}}>
-                    <div style={{fontSize:"16px",fontWeight:"800",color:"#ef4444"}}>{fmt(debt.remaining)}</div>
-                    <div style={{fontSize:"10px",color:T.muted}}>capital pendiente</div>
-                  </div>
-                </div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"4px",marginBottom:"8px"}}>
-                  <div style={{background:T.input,borderRadius:"6px",padding:"5px",textAlign:"center"}}>
-                    <div style={{fontSize:"9px",color:T.muted}}>Cuota</div>
-                    <div style={{fontSize:"11px",fontWeight:"700",color:T.text}}>{fmt(debt.monthly)}</div>
-                  </div>
-                  <div style={{background:T.input,borderRadius:"6px",padding:"5px",textAlign:"center"}}>
-                    <div style={{fontSize:"9px",color:T.muted}}>Interés</div>
-                    <div style={{fontSize:"11px",fontWeight:"700",color:"#f59e0b"}}>{fmt(interestAmt)}</div>
-                  </div>
-                  <div style={{background:T.input,borderRadius:"6px",padding:"5px",textAlign:"center"}}>
-                    <div style={{fontSize:"9px",color:T.muted}}>A capital</div>
-                    <div style={{fontSize:"11px",fontWeight:"700",color:"#10b981"}}>{fmt(capitalAmt)}</div>
-                  </div>
-                </div>
-                <div style={{background:T.border,borderRadius:"4px",height:"4px",marginBottom:"6px"}}>
-                  <div style={{background:debt.color,height:"100%",borderRadius:"4px",width:pct+"%"}}/>
-                </div>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:"11px",color:T.muted}}>{pct}% · {months!=="∞"?`${months} mes(es)`:debt.type==="solo_interes"?"Solo interés":"∞"}</span>
-                  <div style={{display:"flex",gap:"5px"}}>
-                    {debt.remaining>0&&<button onClick={()=>openPayDialog(debt.id)} style={{...s.btn(T.input),color:"#10b981",border:"1px solid #10b98133",fontSize:"11px",padding:"4px 10px"}}>💳 Pagar</button>}
-                    {debt.remaining===0&&debt.type!=="solo_interes"&&<span style={{fontSize:"11px",color:"#10b981",fontWeight:"700"}}>🎉 ¡Pagado!</span>}
-                    <button onClick={()=>setEditingDebt({...debt})} style={{background:T.input,border:"none",borderRadius:"6px",padding:"4px 7px",cursor:"pointer",fontSize:"11px",color:T.muted}}>✏️</button>
-                    <button onClick={()=>deleteDebt(debt.id)} style={{background:"#2a1a1a",border:"none",borderRadius:"6px",padding:"4px 7px",cursor:"pointer",fontSize:"11px",color:"#ef4444"}}>🗑️</button>
-                  </div>
+      {/* Summary */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"10px"}}>
+        <div style={{...s.card,background:"#1a0808",border:"1px solid #ef444433"}}>
+          <div style={s.label}>Deuda total</div>
+          <div style={{fontSize:"16px",fontWeight:"800",color:"#ef4444"}}>{fmt(totalDebt)}</div>
+        </div>
+        <div style={{...s.card,background:"#1a0f00",border:"1px solid #f59e0b33"}}>
+          <div style={s.label}>Cuotas/mes</div>
+          <div style={{fontSize:"16px",fontWeight:"800",color:"#f59e0b"}}>{fmt(totalMonthly)}</div>
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"10px"}}>
+        <div style={{...s.card,background:"#1a0808",border:"1px solid #ef444433"}}>
+          <div style={s.label}>Personales</div>
+          <div style={{fontSize:"14px",fontWeight:"800",color:"#ef4444"}}>{fmt(debts.slice(0,10).reduce((s,d)=>s+d.remaining,0))}</div>
+        </div>
+        <div style={{...s.card,background:"#1a0f00",border:"1px solid #f59e0b33"}}>
+          <div style={s.label}>Créditos virtuales</div>
+          <div style={{fontSize:"14px",fontWeight:"800",color:"#f59e0b"}}>{fmt(debts.slice(10).reduce((s,d)=>s+d.remaining,0))}</div>
+        </div>
+      </div>
+
+      {totalMonthly>income&&(
+        <div style={{...s.card,background:"#1a0808",border:"1px solid #ef4444",marginBottom:"10px"}}>
+          <div style={{fontSize:"12px",color:"#ef4444",fontWeight:"700"}}>⚠️ Cuotas superan ingresos registrados</div>
+          <div style={{fontSize:"11px",color:"#94a3b8",marginTop:"3px"}}>Déficit: {fmt(totalMonthly-income)}</div>
+        </div>
+      )}
+
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:"10px"}}>
+        <button style={s.btn()} onClick={()=>setShowDebtForm(f=>!f)}>+ Nueva deuda</button>
+      </div>
+
+      {showDebtForm&&(
+        <div style={{...s.card,marginBottom:"10px",border:"1px solid #ef444433"}}>
+          <div style={{fontSize:"13px",fontWeight:"700",color:"#ef4444",marginBottom:"10px"}}>Nueva deuda</div>
+          <input style={inp} placeholder="Nombre" value={newDebt.name} onChange={e=>setNewDebt(p=>({...p,name:e.target.value}))}/>
+          <select style={inp} value={newDebt.type} onChange={e=>setNewDebt(p=>({...p,type:e.target.value}))}>
+            <option value="capital_interes">Capital + Interés (cuota incluye ambos)</option>
+            <option value="solo_interes">Solo Interés (capital no baja)</option>
+            <option value="solo_capital">Solo Capital (sin interés)</option>
+          </select>
+          <NumInput style={inp} placeholder="Capital total" value={newDebt.total} onChange={v=>setNewDebt(p=>({...p,total:v,remaining:v}))}/>
+          <NumInput style={inp} placeholder="Saldo pendiente hoy" value={newDebt.remaining} onChange={v=>setNewDebt(p=>({...p,remaining:v}))}/>
+          <NumInput style={inp} placeholder="Cuota mensual" value={newDebt.monthly} onChange={v=>setNewDebt(p=>({...p,monthly:v}))}/>
+          {(newDebt.type==="solo_interes"||newDebt.type==="capital_interes")&&(
+            <input style={inp} type="text" inputMode="decimal" placeholder="Tasa % mensual (ej: 5)" value={newDebt.rate} onChange={e=>setNewDebt(p=>({...p,rate:e.target.value}))}/>
+          )}
+          <input style={inp} type="text" inputMode="numeric" placeholder="Día de pago (ej: 5)" value={newDebt.dueDay} onChange={e=>setNewDebt(p=>({...p,dueDay:e.target.value}))}/>
+          <div style={{display:"flex",gap:"6px",marginBottom:"10px"}}>
+            {colors.map(c=><div key={c} onClick={()=>setNewDebt(p=>({...p,color:c}))} style={{width:"22px",height:"22px",borderRadius:"50%",background:c,cursor:"pointer",border:newDebt.color===c?"3px solid #fff":"3px solid transparent"}}/>)}
+          </div>
+          <div style={{display:"flex",gap:"8px"}}>
+            <button style={s.btn()} onClick={addDebt}>Guardar</button>
+            <button style={s.btn("#1a3454","#94a3b8")} onClick={()=>setShowDebtForm(false)}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {debts.map(debt=>{
+        const pct = debt.total>0 ? Math.round(((debt.total-debt.remaining)/debt.total)*100) : 0;
+        const interestAmt = debt.rate>0 ? Math.round(debt.remaining*debt.rate/100) : 0;
+        const capitalAmt = debt.type==="solo_interes" ? 0 : debt.type==="solo_capital" ? debt.monthly : Math.max(0, debt.monthly - interestAmt);
+        const months = debt.type==="solo_interes" ? "∞" : capitalAmt>0 ? Math.ceil(debt.remaining/capitalAmt) : "∞";
+        const typeInfo = DEBT_TYPE_LABELS[debt.type||"capital_interes"];
+        return(
+          <div key={debt.id} style={{...s.card,borderLeft:`3px solid ${debt.color}`}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"6px"}}>
+              <div>
+                <div style={{fontSize:"14px",fontWeight:"700",color:debt.color}}>{debt.name}</div>
+                <div style={{display:"flex",alignItems:"center",gap:"6px",marginTop:"2px"}}>
+                  <span style={{fontSize:"10px",background:typeInfo.color+"22",color:typeInfo.color,padding:"1px 6px",borderRadius:"8px",fontWeight:"600"}}>{typeInfo.label}</span>
+                  {debt.rate>0&&<span style={{fontSize:"10px",color:"#476282"}}>{debt.rate}% mensual</span>}
+                  {debt.dueDay&&<span style={{fontSize:"10px",color:"#476282"}}>Día {debt.dueDay}</span>}
                 </div>
               </div>
-            );
-          })}
-        </div>}
-      </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:"16px",fontWeight:"800",color:"#ef4444"}}>{fmt(debt.remaining)}</div>
+                <div style={{fontSize:"10px",color:"#476282"}}>capital pendiente</div>
+              </div>
+            </div>
+
+            {/* Payment breakdown */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"4px",marginBottom:"8px"}}>
+              <div style={{background:"#08111f",borderRadius:"6px",padding:"5px",textAlign:"center"}}>
+                <div style={{fontSize:"9px",color:"#476282"}}>Cuota</div>
+                <div style={{fontSize:"11px",fontWeight:"700",color:"#e2e8f0"}}>{fmt(debt.monthly)}</div>
+              </div>
+              <div style={{background:"#1a0808",borderRadius:"6px",padding:"5px",textAlign:"center"}}>
+                <div style={{fontSize:"9px",color:"#476282"}}>Interés</div>
+                <div style={{fontSize:"11px",fontWeight:"700",color:"#f59e0b"}}>{fmt(interestAmt)}</div>
+              </div>
+              <div style={{background:"#071a12",borderRadius:"6px",padding:"5px",textAlign:"center"}}>
+                <div style={{fontSize:"9px",color:"#476282"}}>A capital</div>
+                <div style={{fontSize:"11px",fontWeight:"700",color:"#10b981"}}>{fmt(capitalAmt)}</div>
+              </div>
+            </div>
+
+            <div style={{background:"#1a3454",borderRadius:"4px",height:"4px",marginBottom:"6px"}}>
+              <div style={{background:debt.color,height:"100%",borderRadius:"4px",width:pct+"%"}}/>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontSize:"11px",color:"#476282"}}>{pct}% pagado · {months!=="∞"?`${months} mes(es)`:debt.type==="solo_interes"?"Solo interés perpetuo":"∞"}</span>
+              <div style={{display:"flex",gap:"5px"}}>
+                {debt.remaining>0&&<button onClick={()=>openPayDialog(debt.id)} style={{...s.btn("#071a12"),color:"#10b981",border:"1px solid #10b98133",fontSize:"11px",padding:"4px 10px"}}>💳 Pagar</button>}
+                {debt.remaining===0&&debt.type!=="solo_interes"&&<span style={{fontSize:"11px",color:"#10b981",fontWeight:"700"}}>🎉 ¡Pagado!</span>}
+                <button onClick={()=>setEditingDebt({...debt})} style={{background:"#1a3454",border:"none",borderRadius:"6px",padding:"4px 7px",cursor:"pointer",fontSize:"11px",color:"#94a3b8"}}>✏️</button>
+                <button onClick={()=>deleteDebt(debt.id)} style={{background:"#2a1a1a",border:"none",borderRadius:"6px",padding:"4px 7px",cursor:"pointer",fontSize:"11px",color:"#ef4444"}}>🗑️</button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
     );
   };
 
@@ -1544,39 +1329,6 @@ export default function App() {
     );
   };
 
-  const Configuracion=()=>(
-    <div>
-      {/* TEMAS */}
-      <div style={s.card}>
-        <div style={{fontSize:"14px",fontWeight:"700",color:T.accent,marginBottom:"14px"}}>🎨 Tema de la app</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px"}}>
-          {Object.entries(THEMES).map(([key,t])=>(
-            <div key={key} onClick={()=>setThemeName(key)}
-              style={{padding:"12px",borderRadius:"12px",border:`2px solid ${themeName===key?t.accent:T.border}`,cursor:"pointer",background:t.bg,transition:"all 0.2s"}}>
-              <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"6px"}}>
-                <div style={{width:"24px",height:"24px",borderRadius:"50%",background:t.accent}}/>
-                <div style={{fontSize:"12px",fontWeight:"700",color:t.text}}>{t.name}</div>
-              </div>
-              <div style={{display:"flex",gap:"4px"}}>
-                {[t.bg,t.card,t.accent,t.muted].map((c,i)=>(
-                  <div key={i} style={{flex:1,height:"6px",borderRadius:"3px",background:c}}/>
-                ))}
-              </div>
-              {themeName===key&&<div style={{fontSize:"10px",color:t.accent,fontWeight:"700",marginTop:"5px"}}>✓ Activo</div>}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* CATEGORÍAS */}
-      <div style={s.card}>
-        <div style={{fontSize:"14px",fontWeight:"700",color:T.accent,marginBottom:"4px"}}>🏷️ Categorías</div>
-        <div style={{fontSize:"11px",color:T.muted,marginBottom:"14px"}}>Agrupa y organiza tus categorías de gastos e ingresos.</div>
-        <CatManager expCats={expCats} incCats={incCats} setExpCats={setExpCats} setIncCats={setIncCats} s={s} T={T}/>
-      </div>
-    </div>
-  );
-
   const nav=[
     {id:"dashboard",   label:"📊 Panel"},
     {id:"accounts",    label:"🏦 Cuentas"},
@@ -1584,7 +1336,7 @@ export default function App() {
     {id:"budget",      label:"🎯 Presupuesto"},
     {id:"debts",       label:"🔴 Deudas"},
     {id:"reportes",    label:"📈 Reportes"},
-    {id:"config",      label:"⚙️ Config"},
+    {id:"categorias",  label:"🏷️ Categorías"},
     {id:"chat",        label:"🤖 Chat IA"},
   ];
 
@@ -1600,20 +1352,20 @@ export default function App() {
         </div>
       )}
       <div style={s.header}>
-        <div style={{fontSize:"17px",fontWeight:"800",color:"#10b981",letterSpacing:"-0.5px"}}>💚 DuoFinance</div>
+        <div style={{fontSize:"17px",fontWeight:"800",color:"#10b981",letterSpacing:"-0.5px"}}>💚 MisFinanzas</div>
         <div style={{fontSize:"11px",background:"#10b98122",color:"#10b981",padding:"3px 10px",borderRadius:"20px",border:"1px solid #10b98144"}}>Rafael &amp; Pareja</div>
       </div>
       <div style={s.nav}>
         {nav.map(v=><button key={v.id} style={s.navBtn(view===v.id)} onClick={()=>setView(v.id)}>{v.label}</button>)}
       </div>
       <div style={s.page}>
-        {view==="dashboard"    && <Dashboard/>}
-        {view==="accounts"     && <Cuentas/>}
-        {view==="transactions" && <Transacciones/>}
-        {view==="budget"       && <BudgetView budgetRows={budgetRows} setBudget={setBudget} s={s} T={T} thisMonth={thisMonth}/>}
-        {view==="debts"        && <Deudas/>}
-        {view==="reportes"     && <Reportes/>}
-        {view==="config"       && <Configuracion/>}
+        {view==="dashboard"    && Dashboard()}
+        {view==="accounts"     && Cuentas()}
+        {view==="transactions" && Transacciones()}
+        {view==="budget"       && Presupuesto()}
+        {view==="debts"        && Deudas()}
+        {view==="reportes"     && Reportes()}
+        {view==="categorias"   && <Categorias/>}
         {view==="chat"         && <ChatIA/>}
       </div>
     </div>
