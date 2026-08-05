@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, AreaChart, Area, XAxis, YAxis } from "recharts";
 
 // ── FIREBASE CONFIG ───────────────────────────────────────────────────────────
