@@ -261,12 +261,12 @@ function TransferForm({accounts, onSave, onCancel}) {
 }
 
 // ── TRANSACTION FORM ─────────────────────────────────────────────────────────
-function TransactionForm({accounts, expGroups, incGroups, onSave, onCancel}) {
+function TransactionForm({accounts, expGroups, incGroups, onSave, onCancel, initialType="expense"}) {
   const expFlat = expGroups.flatMap(g=>g.items);
   const incFlat = incGroups.flatMap(g=>g.items);
   const [tx, setTx] = useState({
     user:"Rafael", account: accounts[0]?.id || "finandina",
-    type:"expense", category: expFlat[0] || "Otros",
+    type:initialType, category: (initialType==="income"?incFlat[0]:expFlat[0]) || "Otros",
     amount:"", description:"", date:new Date().toISOString().split("T")[0], shared:false
   });
 
@@ -381,6 +381,9 @@ export default function App() {
   const [ready,        setReady]        = useState(false);
   const [showForm,     setShowForm]     = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
+  const [fabOpen,      setFabOpen]      = useState(false);
+  const [formType,     setFormType]     = useState("expense");
+  const [accFilter,    setAccFilter]    = useState(null);
   const [editingTx,    setEditingTx]    = useState(null);
   const [showDebtForm, setShowDebtForm] = useState(false);
   const [editingDebt,  setEditingDebt]  = useState(null);
@@ -439,8 +442,9 @@ export default function App() {
   const totalMonthly=debts.reduce((s,d)=>s+d.monthly,0);
 
   const accBalances = accounts.map(acc=>{
-    const txs=transactions.filter(t=>t.account===acc.id);
-    return{...acc,balance:acc.initialBalance+txs.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0)-txs.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0)};
+    const txs=filtered.filter(t=>t.account===acc.id);
+    const base = filterUser==="Todos" ? acc.initialBalance : 0;
+    return{...acc,balance:base+txs.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0)-txs.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0)};
   });
   const totalBalance=accBalances.reduce((s,a)=>s+a.balance,0);
 
@@ -614,10 +618,12 @@ export default function App() {
       {/* Cuentas */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"10px"}}>
         {accBalances.map(acc=>(
-          <div key={acc.id} style={{...s.card,borderLeft:`3px solid ${acc.color}`,padding:"12px",marginBottom:0}}>
+          <div key={acc.id} onClick={()=>{setAccFilter(acc.id);setView("transactions");}}
+            style={{...s.card,borderLeft:`3px solid ${acc.color}`,padding:"12px",marginBottom:0,cursor:"pointer"}}>
             <div style={{fontSize:"18px",marginBottom:"2px"}}>{acc.icon}</div>
             <div style={{fontSize:"11px",color:"var(--muted)",fontWeight:"600"}}>{acc.name}</div>
             <div style={{fontSize:"16px",fontWeight:"800",color:acc.balance>=0?acc.color:"#ef4444",marginTop:"2px"}}>{fmtShort(acc.balance)}</div>
+            <div style={{fontSize:"9px",color:"var(--dim)",marginTop:"3px"}}>ver movimientos ›</div>
           </div>
         ))}
       </div>
@@ -783,7 +789,10 @@ export default function App() {
     </div>
   );
 
-  const Transacciones=()=>(
+  const Transacciones=()=>{
+    const accF=accounts.find(a=>a.id===accFilter);
+    const txList=filtered.filter(t=>!accFilter||t.account===accFilter);
+    return(
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"12px",gap:"8px"}}>
         <div style={s.fRow}>
@@ -795,23 +804,13 @@ export default function App() {
         </div>
       </div>
 
-      {showTransfer && (
-        <TransferForm
-          accounts={accounts}
-          onSave={(from,to,amount,desc,date)=>{ processTransfer(from,to,amount,desc,date); setShowTransfer(false); }}
-          onCancel={()=>setShowTransfer(false)}
-        />
+      {accF && (
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",...s.card,borderLeft:`3px solid ${accF.color}`,marginBottom:"10px"}}>
+          <div style={{fontSize:"13px",fontWeight:"700",color:"var(--text)"}}>{accF.icon} Movimientos de {accF.name}</div>
+          <button onClick={()=>setAccFilter(null)} style={{background:"var(--card-brd)",border:"none",borderRadius:"7px",padding:"5px 12px",cursor:"pointer",fontSize:"12px",color:"var(--text-2)",fontFamily:"'Sora',sans-serif"}}>✕ Ver todas</button>
+        </div>
       )}
 
-      {showForm && (
-        <TransactionForm
-          accounts={accounts}
-          expGroups={expCats}
-          incGroups={incCats}
-          onSave={tx => { addTx(tx); setShowForm(false); }}
-          onCancel={() => setShowForm(false)}
-        />
-      )}
 
       {editingTx&&(
         <div style={{position:"fixed",inset:0,background:"#000000bb",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}}>
@@ -858,8 +857,8 @@ export default function App() {
       </div>
 
       <div style={s.card}>
-        <div style={s.secTitle}>{filtered.length} transacciones</div>
-        {filtered.map(tx=>{
+        <div style={s.secTitle}>{txList.length} transacciones</div>
+        {txList.map(tx=>{
           const acc=accounts.find(a=>a.id===tx.account);
           return(
             <div key={tx.id} style={s.txRow}>
@@ -887,7 +886,8 @@ export default function App() {
         })}
       </div>
     </div>
-  );
+    );
+  };
 
   const Presupuesto=()=>(
     <div>
@@ -1475,6 +1475,61 @@ export default function App() {
         {view==="chat"         && <ChatIA/>}
         {view==="ajustes"      && Ajustes()}
       </div>
+
+      {/* BOTÓN FLOTANTE + MENÚ — desde cualquier vista */}
+      {view!=="chat" && !showForm && !showTransfer && (
+        <div style={{position:"fixed",bottom:"22px",right:"22px",zIndex:250,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"10px"}}>
+          {fabOpen && (
+            <div style={{display:"flex",flexDirection:"column",gap:"8px",alignItems:"flex-end"}}>
+              {[
+                {label:"Gasto",         icon:"💸", onClick:()=>{setFormType("expense");setShowForm(true);setFabOpen(false);}},
+                {label:"Ingreso",       icon:"💰", onClick:()=>{setFormType("income");setShowForm(true);setFabOpen(false);}},
+                {label:"Transferencia", icon:"🔄", onClick:()=>{setShowTransfer(true);setFabOpen(false);}},
+              ].map(o=>(
+                <button key={o.label} onClick={o.onClick}
+                  style={{display:"flex",alignItems:"center",gap:"8px",background:"var(--card)",color:"var(--text)",border:"1px solid var(--card-brd)",borderRadius:"22px",padding:"9px 16px",fontSize:"13px",fontWeight:"600",cursor:"pointer",fontFamily:"'Sora',sans-serif",boxShadow:"0 4px 16px #00000066",whiteSpace:"nowrap"}}>
+                  <span>{o.icon}</span>{o.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <button onClick={()=>setFabOpen(f=>!f)} title="Nuevo registro"
+            style={{width:"56px",height:"56px",borderRadius:"50%",border:"none",cursor:"pointer",background:"var(--accent)",color:"#000",fontSize:"30px",fontWeight:"700",lineHeight:"1",boxShadow:"0 6px 20px #00000066",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Sora',sans-serif",transform:fabOpen?"rotate(45deg)":"none",transition:"transform .2s"}}>+</button>
+        </div>
+      )}
+
+      {/* MODAL GLOBAL — nuevo registro (gasto/ingreso) */}
+      {showForm && (
+        <div style={{position:"fixed",inset:0,background:"#000000bb",zIndex:300,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"16px",overflowY:"auto"}}
+          onClick={e=>{ if(e.target===e.currentTarget) setShowForm(false); }}>
+          <div style={{width:"100%",maxWidth:"440px",marginTop:"36px"}}>
+            <div style={{fontSize:"15px",fontWeight:"800",color:"#fff",marginBottom:"10px"}}>{formType==="income"?"💰 Nuevo ingreso":"💸 Nuevo gasto"}</div>
+            <TransactionForm
+              accounts={accounts}
+              expGroups={expCats}
+              incGroups={incCats}
+              initialType={formType}
+              onSave={tx => { addTx(tx); setShowForm(false); }}
+              onCancel={() => setShowForm(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* MODAL GLOBAL — transferencia entre cuentas */}
+      {showTransfer && (
+        <div style={{position:"fixed",inset:0,background:"#000000bb",zIndex:300,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"16px",overflowY:"auto"}}
+          onClick={e=>{ if(e.target===e.currentTarget) setShowTransfer(false); }}>
+          <div style={{width:"100%",maxWidth:"440px",marginTop:"36px"}}>
+            <div style={{fontSize:"15px",fontWeight:"800",color:"#fff",marginBottom:"10px"}}>🔄 Transferencia entre cuentas</div>
+            <TransferForm
+              accounts={accounts}
+              onSave={(from,to,amount,desc,date)=>{ processTransfer(from,to,amount,desc,date); setShowTransfer(false); }}
+              onCancel={()=>setShowTransfer(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
