@@ -384,6 +384,7 @@ export default function App() {
   const [fabOpen,      setFabOpen]      = useState(false);
   const [formType,     setFormType]     = useState("expense");
   const [accFilter,    setAccFilter]    = useState(null);
+  const [debtTab,      setDebtTab]      = useState("debo");
   const [editingTx,    setEditingTx]    = useState(null);
   const [showDebtForm, setShowDebtForm] = useState(false);
   const [editingDebt,  setEditingDebt]  = useState(null);
@@ -438,8 +439,9 @@ export default function App() {
   const monthTxs   = filtered.filter(t=>t.date.startsWith(thisMonth()));
   const income     = monthTxs.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0);
   const expense    = monthTxs.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0);
-  const totalDebt  = debts.reduce((s,d)=>s+d.remaining,0);
-  const totalMonthly=debts.reduce((s,d)=>s+d.monthly,0);
+  const totalDebt  = debts.filter(d=>(d.dir||"debo")==="debo").reduce((s,d)=>s+d.remaining,0);
+  const totalMonthly=debts.filter(d=>(d.dir||"debo")==="debo").reduce((s,d)=>s+d.monthly,0);
+  const totalReceivable = debts.filter(d=>d.dir==="cobrar").reduce((s,d)=>s+d.remaining,0);
 
   const accBalances = accounts.map(acc=>{
     const txs=filtered.filter(t=>t.account===acc.id);
@@ -487,8 +489,8 @@ export default function App() {
     const remaining=parseInt(newDebt.remaining||newDebt.total)||0;
     const rate=parseFloat(newDebt.rate)||0;
     const monthly=parseInt(newDebt.monthly)||(newDebt.type==="solo_interes"?Math.round(remaining*rate/100):0);
-    setDebts(p=>[...p,{...newDebt,id:Date.now(),total,remaining,monthly,rate,dueDay:parseInt(newDebt.dueDay)||null}]);
-    setNewDebt({name:"",type:"capital_interes",total:"",remaining:"",monthly:"",rate:"",dueDay:"",color:"#ef4444"});
+    setDebts(p=>[...p,{...newDebt,id:Date.now(),dir:debtTab,total,remaining,monthly,rate,dueDay:parseInt(newDebt.dueDay)||null}]);
+    setNewDebt({name:"",type:"capital_interes",total:"",remaining:"",monthly:"",rate:"",dueDay:"",color:debtTab==="cobrar"?"#34d399":"#ef4444"});
     setShowDebtForm(false);
   };
 
@@ -513,7 +515,7 @@ export default function App() {
       ...d,
       interestAmt,
       capitalAmt: Math.max(0, d.monthly - interestAmt),
-      customAmount: d.monthly || interestAmt,
+      customAmount: d.monthly || d.remaining || interestAmt,
       payType: d.type === "solo_capital" ? "capital" : d.type === "solo_interes" ? "interes" : "ambos",
       account: "finandina",
     });
@@ -546,10 +548,15 @@ export default function App() {
       desc = `Abono libre: ${d.name}`;
     }
 
+    // "Me deben": misma lógica de interés/capital, pero el abono entra como ingreso
+    const isReceivable = d.dir === "cobrar";
+    if (isReceivable) desc = `Recibido — ${desc}`;
+
     setDebts(p => p.map(x => x.id === d.id ? {...x, remaining: newRemaining} : x));
     setTransactions(p => [{
       id: Date.now(), user:"Rafael", account: d.account || "finandina",
-      type:"expense", category:"Préstamos / Cuotas",
+      type: isReceivable ? "income" : "expense",
+      category: isReceivable ? "Préstamo recibido" : "Préstamos / Cuotas",
       description: desc, amount: pmt, date: today()
     }, ...p]);
     setPayingDebt(null);
@@ -571,7 +578,7 @@ export default function App() {
     if(!msg||chatLoading)return;
     setChatInput("");
     setChatMsgs(p=>[...p,{role:"user",content:msg}]);setChatLoading(true);
-    const ctx=`Cuentas: ${JSON.stringify(accBalances.map(a=>({cuenta:a.name,saldo:fmt(a.balance)})))} | Total disponible: ${fmt(totalBalance)} | Ingresos mes: ${fmt(income)} | Gastos mes: ${fmt(expense)} | Deuda total: ${fmt(totalDebt)} | Cuotas/mes: ${fmt(totalMonthly)} | Deudas: ${JSON.stringify(debts.map(d=>({n:d.name,s:fmt(d.remaining),c:fmt(d.monthly)})))} | Top gastos: ${JSON.stringify(catData.slice(0,6).map(d=>({cat:d.name,monto:fmt(d.value)})))}`;
+    const ctx=`Cuentas: ${JSON.stringify(accBalances.map(a=>({cuenta:a.name,saldo:fmt(a.balance)})))} | Total disponible: ${fmt(totalBalance)} | Ingresos mes: ${fmt(income)} | Gastos mes: ${fmt(expense)} | Deuda total: ${fmt(totalDebt)} | Cuotas/mes: ${fmt(totalMonthly)} | Te deben (por cobrar): ${fmt(totalReceivable)} | Deudas: ${JSON.stringify(debts.filter(d=>(d.dir||"debo")==="debo").map(d=>({n:d.name,s:fmt(d.remaining),c:fmt(d.monthly)})))} | Prestamos por cobrar: ${JSON.stringify(debts.filter(d=>d.dir==="cobrar").map(d=>({n:d.name,s:fmt(d.remaining)})))} | Top gastos: ${JSON.stringify(catData.slice(0,6).map(d=>({cat:d.name,monto:fmt(d.value)})))}`;
     try{
       const res=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:`Eres asesor financiero personal de Rafael, colombiano. Datos en tiempo real:\n${ctx}\nResponde en español, conciso y práctico. Montos en COP.`,messages:[...chatMsgs.slice(1).map(m=>({role:m.role,content:m.content})),{role:"user",content:msg}]})});
       if(!res.ok){const e=await res.json();setChatMsgs(p=>[...p,{role:"assistant",content:`Error: ${e.error||res.status}`}]);setChatLoading(false);return;}
@@ -664,6 +671,18 @@ export default function App() {
               <div style={{fontSize:"11px",color:"var(--muted)",marginTop:"2px"}}>Cuotas este mes: {fmt(totalMonthly)}</div>
             </div>
             <div style={{fontSize:"18px",fontWeight:"800",color:"#ef4444"}}>{fmtShort(totalDebt)}</div>
+          </div>
+        </div>
+      )}
+
+      {totalReceivable>0&&(
+        <div onClick={()=>{setDebtTab("cobrar");setView("debts");}} style={{...s.card,background:"var(--income-bg)",border:"1px solid var(--accent-33)",cursor:"pointer"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:"12px",color:"var(--accent)",fontWeight:"700"}}>🟢 Te deben</div>
+              <div style={{fontSize:"11px",color:"var(--muted)",marginTop:"2px"}}>Préstamos por cobrar ›</div>
+            </div>
+            <div style={{fontSize:"18px",fontWeight:"800",color:"var(--accent)"}}>{fmtShort(totalReceivable)}</div>
           </div>
         </div>
       )}
@@ -924,15 +943,27 @@ export default function App() {
   const Deudas=()=>{
     const inp = {...s.input, marginBottom:"8px"};
     const colors = ["#ef4444","#f97316","#f59e0b","#34d399","#3b82f6","#8b5cf6","#ec4899"];
+    const isCobrar = debtTab==="cobrar";
+    const list = debts.filter(d=>(d.dir||"debo")===debtTab);
+    const listTotal = list.reduce((s,d)=>s+d.remaining,0);
+    const listMonthly = list.reduce((s,d)=>s+d.monthly,0);
+    const accent = isCobrar ? "var(--accent)" : "#ef4444";
 
     return(
     <div>
+      {/* Pestañas Debo / Me deben */}
+      <div style={{display:"flex",gap:"8px",marginBottom:"12px"}}>
+        {[{k:"debo",label:"🔴 Debo"},{k:"cobrar",label:"🟢 Me deben"}].map(t=>(
+          <button key={t.k} onClick={()=>{setDebtTab(t.k);setShowDebtForm(false);}}
+            style={{flex:1,padding:"10px",borderRadius:"10px",border:`1px solid ${debtTab===t.k?(t.k==="cobrar"?"var(--accent)":"#ef4444"):"var(--input-brd)"}`,cursor:"pointer",fontSize:"13px",fontWeight:"700",fontFamily:"'Sora',sans-serif",background:debtTab===t.k?(t.k==="cobrar"?"var(--income-bg)":"var(--expense-bg)"):"transparent",color:debtTab===t.k?(t.k==="cobrar"?"var(--accent)":"#ef4444"):"var(--text-2)"}}>{t.label}</button>
+        ))}
+      </div>
       {/* ── Payment Dialog ──────────────────────────────────────────── */}
       {payingDebt&&(
         <div style={{position:"fixed",inset:0,background:"#000000cc",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}}>
           <div style={{...s.card,width:"100%",maxWidth:"400px",border:`1px solid ${payingDebt.color}55`}}>
-            <div style={{fontSize:"15px",fontWeight:"800",color:payingDebt.color,marginBottom:"4px"}}>💳 Registrar pago</div>
-            <div style={{fontSize:"12px",color:"var(--muted)",marginBottom:"14px"}}>{payingDebt.name} · Capital pendiente: {fmt(payingDebt.remaining)}</div>
+            <div style={{fontSize:"15px",fontWeight:"800",color:payingDebt.color,marginBottom:"4px"}}>{payingDebt.dir==="cobrar"?"💰 Registrar abono recibido":"💳 Registrar pago"}</div>
+            <div style={{fontSize:"12px",color:"var(--muted)",marginBottom:"14px"}}>{payingDebt.name} · {payingDebt.dir==="cobrar"?"Te deben":"Capital pendiente"}: {fmt(payingDebt.remaining)}</div>
 
             {/* Info chips */}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"6px",marginBottom:"14px"}}>
@@ -981,7 +1012,7 @@ export default function App() {
             {/* New remaining preview */}
             {payingDebt.payType!=="interes"&&(
               <div style={{background:"var(--income-bg)",border:"1px solid var(--accent-33)",borderRadius:"8px",padding:"8px",marginBottom:"12px",textAlign:"center"}}>
-                <div style={{fontSize:"11px",color:"var(--muted)"}}>Capital restante después del pago</div>
+                <div style={{fontSize:"11px",color:"var(--muted)"}}>{payingDebt.dir==="cobrar"?"Te deberán después":"Capital restante después del pago"}</div>
                 <div style={{fontSize:"16px",fontWeight:"800",color:"var(--accent)"}}>
                   {fmt(Math.max(0, payingDebt.remaining - (
                     payingDebt.payType==="capital"||payingDebt.payType==="abono"
@@ -1029,27 +1060,17 @@ export default function App() {
 
       {/* Summary */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"10px"}}>
-        <div style={{...s.card,background:"var(--expense-bg)",border:"1px solid #ef444433"}}>
-          <div style={s.label}>Deuda total</div>
-          <div style={{fontSize:"16px",fontWeight:"800",color:"#ef4444"}}>{fmt(totalDebt)}</div>
+        <div style={{...s.card,background:isCobrar?"var(--income-bg)":"var(--expense-bg)",border:`1px solid ${isCobrar?"var(--accent-33)":"#ef444433"}`}}>
+          <div style={s.label}>{isCobrar?"Total por cobrar":"Deuda total"}</div>
+          <div style={{fontSize:"16px",fontWeight:"800",color:accent}}>{fmt(listTotal)}</div>
         </div>
         <div style={{...s.card,background:"var(--warn-bg)",border:"1px solid #f59e0b33"}}>
-          <div style={s.label}>Cuotas/mes</div>
-          <div style={{fontSize:"16px",fontWeight:"800",color:"#f59e0b"}}>{fmt(totalMonthly)}</div>
-        </div>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"10px"}}>
-        <div style={{...s.card,background:"var(--expense-bg)",border:"1px solid #ef444433"}}>
-          <div style={s.label}>Personales</div>
-          <div style={{fontSize:"14px",fontWeight:"800",color:"#ef4444"}}>{fmt(debts.slice(0,10).reduce((s,d)=>s+d.remaining,0))}</div>
-        </div>
-        <div style={{...s.card,background:"var(--warn-bg)",border:"1px solid #f59e0b33"}}>
-          <div style={s.label}>Créditos virtuales</div>
-          <div style={{fontSize:"14px",fontWeight:"800",color:"#f59e0b"}}>{fmt(debts.slice(10).reduce((s,d)=>s+d.remaining,0))}</div>
+          <div style={s.label}>{isCobrar?"Abonos/mes esperados":"Cuotas/mes"}</div>
+          <div style={{fontSize:"16px",fontWeight:"800",color:"#f59e0b"}}>{fmt(listMonthly)}</div>
         </div>
       </div>
 
-      {totalMonthly>income&&(
+      {!isCobrar && totalMonthly>income&&(
         <div style={{...s.card,background:"var(--expense-bg)",border:"1px solid #ef4444",marginBottom:"10px"}}>
           <div style={{fontSize:"12px",color:"#ef4444",fontWeight:"700"}}>⚠️ Cuotas superan ingresos registrados</div>
           <div style={{fontSize:"11px",color:"var(--text-2)",marginTop:"3px"}}>Déficit: {fmt(totalMonthly-income)}</div>
@@ -1057,21 +1078,21 @@ export default function App() {
       )}
 
       <div style={{display:"flex",justifyContent:"flex-end",marginBottom:"10px"}}>
-        <button style={s.btn()} onClick={()=>setShowDebtForm(f=>!f)}>+ Nueva deuda</button>
+        <button style={s.btn()} onClick={()=>setShowDebtForm(f=>!f)}>{isCobrar?"+ Nuevo préstamo":"+ Nueva deuda"}</button>
       </div>
 
       {showDebtForm&&(
-        <div style={{...s.card,marginBottom:"10px",border:"1px solid #ef444433"}}>
-          <div style={{fontSize:"13px",fontWeight:"700",color:"#ef4444",marginBottom:"10px"}}>Nueva deuda</div>
-          <input style={inp} placeholder="Nombre" value={newDebt.name} onChange={e=>setNewDebt(p=>({...p,name:e.target.value}))}/>
+        <div style={{...s.card,marginBottom:"10px",border:`1px solid ${isCobrar?"var(--accent-33)":"#ef444433"}`}}>
+          <div style={{fontSize:"13px",fontWeight:"700",color:accent,marginBottom:"10px"}}>{isCobrar?"Nuevo préstamo (me deben)":"Nueva deuda"}</div>
+          <input style={inp} placeholder={isCobrar?"Nombre (a quién le prestaste)":"Nombre"} value={newDebt.name} onChange={e=>setNewDebt(p=>({...p,name:e.target.value}))}/>
           <select style={inp} value={newDebt.type} onChange={e=>setNewDebt(p=>({...p,type:e.target.value}))}>
             <option value="capital_interes">Capital + Interés (cuota incluye ambos)</option>
             <option value="solo_interes">Solo Interés (capital no baja)</option>
             <option value="solo_capital">Solo Capital (sin interés)</option>
           </select>
-          <NumInput style={inp} placeholder="Capital total" value={newDebt.total} onChange={v=>setNewDebt(p=>({...p,total:v,remaining:v}))}/>
-          <NumInput style={inp} placeholder="Saldo pendiente hoy" value={newDebt.remaining} onChange={v=>setNewDebt(p=>({...p,remaining:v}))}/>
-          <NumInput style={inp} placeholder="Cuota mensual" value={newDebt.monthly} onChange={v=>setNewDebt(p=>({...p,monthly:v}))}/>
+          <NumInput style={inp} placeholder={isCobrar?"Monto prestado":"Capital total"} value={newDebt.total} onChange={v=>setNewDebt(p=>({...p,total:v,remaining:v}))}/>
+          <NumInput style={inp} placeholder={isCobrar?"Saldo que te deben hoy":"Saldo pendiente hoy"} value={newDebt.remaining} onChange={v=>setNewDebt(p=>({...p,remaining:v}))}/>
+          <NumInput style={inp} placeholder={isCobrar?"Abono mensual esperado":"Cuota mensual"} value={newDebt.monthly} onChange={v=>setNewDebt(p=>({...p,monthly:v}))}/>
           {(newDebt.type==="solo_interes"||newDebt.type==="capital_interes")&&(
             <input style={inp} type="text" inputMode="decimal" placeholder="Tasa % mensual (ej: 5)" value={newDebt.rate} onChange={e=>setNewDebt(p=>({...p,rate:e.target.value}))}/>
           )}
@@ -1086,12 +1107,18 @@ export default function App() {
         </div>
       )}
 
-      {debts.map(debt=>{
+      {list.length===0 && (
+        <div style={{...s.card,textAlign:"center",padding:"24px 14px",color:"var(--muted)",fontSize:"13px"}}>
+          {isCobrar?"No tienes préstamos por cobrar. Toca “+ Nuevo préstamo”.":"No tienes deudas registradas. Toca “+ Nueva deuda”."}
+        </div>
+      )}
+      {list.map(debt=>{
         const pct = debt.total>0 ? Math.round(((debt.total-debt.remaining)/debt.total)*100) : 0;
         const interestAmt = debt.rate>0 ? Math.round(debt.remaining*debt.rate/100) : 0;
         const capitalAmt = debt.type==="solo_interes" ? 0 : debt.type==="solo_capital" ? debt.monthly : Math.max(0, debt.monthly - interestAmt);
         const months = debt.type==="solo_interes" ? "∞" : capitalAmt>0 ? Math.ceil(debt.remaining/capitalAmt) : "∞";
         const typeInfo = DEBT_TYPE_LABELS[debt.type||"capital_interes"];
+        const cobrar = debt.dir==="cobrar";
         return(
           <div key={debt.id} style={{...s.card,borderLeft:`3px solid ${debt.color}`}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"6px"}}>
@@ -1104,15 +1131,15 @@ export default function App() {
                 </div>
               </div>
               <div style={{textAlign:"right"}}>
-                <div style={{fontSize:"16px",fontWeight:"800",color:"#ef4444"}}>{fmt(debt.remaining)}</div>
-                <div style={{fontSize:"10px",color:"var(--muted)"}}>capital pendiente</div>
+                <div style={{fontSize:"16px",fontWeight:"800",color:cobrar?"var(--accent)":"#ef4444"}}>{fmt(debt.remaining)}</div>
+                <div style={{fontSize:"10px",color:"var(--muted)"}}>{cobrar?"te deben":"capital pendiente"}</div>
               </div>
             </div>
 
             {/* Payment breakdown */}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"4px",marginBottom:"8px"}}>
               <div style={{background:"var(--surface)",borderRadius:"6px",padding:"5px",textAlign:"center"}}>
-                <div style={{fontSize:"9px",color:"var(--muted)"}}>Cuota</div>
+                <div style={{fontSize:"9px",color:"var(--muted)"}}>{cobrar?"Abono":"Cuota"}</div>
                 <div style={{fontSize:"11px",fontWeight:"700",color:"var(--text)"}}>{fmt(debt.monthly)}</div>
               </div>
               <div style={{background:"var(--expense-bg)",borderRadius:"6px",padding:"5px",textAlign:"center"}}>
@@ -1131,8 +1158,8 @@ export default function App() {
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <span style={{fontSize:"11px",color:"var(--muted)"}}>{pct}% pagado · {months!=="∞"?`${months} mes(es)`:debt.type==="solo_interes"?"Solo interés perpetuo":"∞"}</span>
               <div style={{display:"flex",gap:"5px"}}>
-                {debt.remaining>0&&<button onClick={()=>openPayDialog(debt.id)} style={{...s.btn("var(--income-bg)"),color:"var(--accent)",border:"1px solid var(--accent-33)",fontSize:"11px",padding:"4px 10px"}}>💳 Pagar</button>}
-                {debt.remaining===0&&debt.type!=="solo_interes"&&<span style={{fontSize:"11px",color:"var(--accent)",fontWeight:"700"}}>🎉 ¡Pagado!</span>}
+                {debt.remaining>0&&<button onClick={()=>openPayDialog(debt.id)} style={{...s.btn("var(--income-bg)"),color:"var(--accent)",border:"1px solid var(--accent-33)",fontSize:"11px",padding:"4px 10px"}}>{cobrar?"💰 Abono":"💳 Pagar"}</button>}
+                {debt.remaining===0&&debt.type!=="solo_interes"&&<span style={{fontSize:"11px",color:"var(--accent)",fontWeight:"700"}}>{cobrar?"✅ ¡Te pagaron!":"🎉 ¡Pagado!"}</span>}
                 <button onClick={()=>setEditingDebt({...debt})} style={{background:"var(--card-brd)",border:"none",borderRadius:"6px",padding:"4px 7px",cursor:"pointer",fontSize:"11px",color:"var(--text-2)"}}>✏️</button>
                 <button onClick={()=>deleteDebt(debt.id)} style={{background:"var(--expense-bg)",border:"none",borderRadius:"6px",padding:"4px 7px",cursor:"pointer",fontSize:"11px",color:"#ef4444"}}>🗑️</button>
               </div>
@@ -1188,7 +1215,7 @@ export default function App() {
   // ── PAYMENT REMINDERS ────────────────────────────────────────────────────────
   const today2 = new Date();
   const dayOfMonth = today2.getDate();
-  const dueThisWeek = debts.filter(d => d.remaining > 0 && d.dueDay && Math.abs(d.dueDay - dayOfMonth) <= 5);
+  const dueThisWeek = debts.filter(d => (d.dir||"debo")==="debo" && d.remaining > 0 && d.dueDay && Math.abs(d.dueDay - dayOfMonth) <= 5);
 
   // ── MONTH COMPARISON DATA ─────────────────────────────────────────────────────
   const last6Months = Array.from({length:6},(_,i)=>{
@@ -1207,7 +1234,7 @@ export default function App() {
 
   // ── DEBT PROJECTION ───────────────────────────────────────────────────────────
   const debtProjection = Array.from({length:24},(_,i)=>{
-    const totalRemaining = debts.reduce((s,d)=>{
+    const totalRemaining = debts.filter(d=>(d.dir||"debo")==="debo").reduce((s,d)=>{
       const remaining = Math.max(0, d.remaining - (d.monthly * i));
       return s + remaining;
     },0);
